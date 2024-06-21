@@ -1,0 +1,27 @@
+[package]
+name = "alloy-fork-db"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.76"
+authors = ["Alloy Contributors"]
+license = "MIT OR Apache-2.0"
+homepage = "https://github.com/alloy-rs/op-alloy"
+repository = "https://github.com/alloy-rs/op-alloy"
+exclude = ["benches/", "tests/"]
+
+[lints]
+rust.unused_must_use = "deny"
+rust.rust_2018_idioms = "deny"
+rustdoc.all = "warn"
+
+[lints.clippy]
+all = "warn"
+missing_const_for_fn = "warn"
+use_self = "warn"
+option_if_let_else = "warn"
+
+[metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
