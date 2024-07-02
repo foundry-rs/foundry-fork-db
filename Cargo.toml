@@ -19,8 +19,30 @@ missing_const_for_fn = "warn"
 use_self = "warn"
 option_if_let_else = "warn"
 
-[metadata.docs.rs]
+[package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
+alloy-primitives = "0.7.3"
+alloy-provider = { version = "0.1.2", default-features = false }
+alloy-rpc-types = { version = "0.1.2", features = ["eth"] }
+alloy-serde = { version = "0.1.2", default-features = false }
+alloy-transport = { version = "0.1.2", default-features = false }
+
+eyre = "0.6"
+futures = "0.3"
+
+parking_lot = "0.12"
+
+revm = { version = "10.0.0", features = ["std", "serde"] }
+rustc-hash = "2.0"
+
+serde = "1.0"
+serde_json = "1.0"
+
+thiserror = "1"
+tokio = { version = "1", features = ["rt-multi-thread"] }
+tracing = "0.1"
+
+url = "2"
