@@ -10,7 +10,7 @@ repository = "https://github.com/alloy-rs/alloy-fork-db"
 
 [lints]
 rust.unused_must_use = "deny"
-rust.rust_2018_idioms = "deny"
+rust.rust_2018_idioms = { level = "deny", priority = -1 }
 rustdoc.all = "warn"
 
 [lints.clippy]
