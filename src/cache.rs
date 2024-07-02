@@ -99,17 +99,17 @@ impl BlockchainDb {
     }
 
     /// Returns the Env related metadata
-    pub fn meta(&self) -> &Arc<RwLock<BlockchainDbMeta>> {
+    pub const fn meta(&self) -> &Arc<RwLock<BlockchainDbMeta>> {
         &self.meta
     }
 
     /// Returns the inner cache
-    pub fn cache(&self) -> &Arc<JsonBlockCacheDB> {
+    pub const fn cache(&self) -> &Arc<JsonBlockCacheDB> {
         &self.cache
     }
 
     /// Returns the underlying storage
-    pub fn db(&self) -> &Arc<MemDb> {
+    pub const fn db(&self) -> &Arc<MemDb> {
         &self.db
     }
 }
@@ -364,17 +364,17 @@ impl JsonBlockCacheDB {
     }
 
     /// Returns the [MemDb] it holds access to
-    pub fn db(&self) -> &Arc<MemDb> {
+    pub const fn db(&self) -> &Arc<MemDb> {
         &self.data.data
     }
 
     /// Metadata stored alongside the data
-    pub fn meta(&self) -> &Arc<RwLock<BlockchainDbMeta>> {
+    pub const fn meta(&self) -> &Arc<RwLock<BlockchainDbMeta>> {
         &self.data.meta
     }
 
     /// Returns `true` if this is a transient cache and nothing will be flushed
-    pub fn is_transient(&self) -> bool {
+    pub const fn is_transient(&self) -> bool {
         self.cache_path.is_none()
     }
 
