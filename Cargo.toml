@@ -14,7 +14,6 @@ rust.rust_2018_idioms = "deny"
 rustdoc.all = "warn"
 
 [lints.clippy]
-all = "warn"
 missing_const_for_fn = "warn"
 use_self = "warn"
 option_if_let_else = "warn"

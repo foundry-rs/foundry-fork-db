@@ -706,9 +706,9 @@ impl DatabaseRef for SharedBackend {
 
 #[cfg(test)]
 mod tests {
-    use alloy_provider::{ProviderBuilder, RootProvider};
-    use crate::cache::{BlockchainDbMeta, JsonBlockCacheDB};
     use super::*;
+    use crate::cache::{BlockchainDbMeta, JsonBlockCacheDB};
+    use alloy_provider::{ProviderBuilder, RootProvider};
     use alloy_rpc_client::ClientBuilder;
     use alloy_transport_http::{Client, Http};
     use std::{collections::BTreeSet, path::PathBuf};
