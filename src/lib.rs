@@ -5,10 +5,10 @@
 #[macro_use]
 extern crate tracing;
 
+pub mod backend;
 pub mod cache;
 pub mod error;
-pub mod fork;
 
+pub use backend::{BackendHandler, SharedBackend};
 pub use cache::BlockchainDb;
 pub use error::{DatabaseError, DatabaseResult};
-pub use fork::{BackendHandler, SharedBackend};

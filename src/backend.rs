@@ -703,3 +703,73 @@ impl DatabaseRef for SharedBackend {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use alloy_provider::{ProviderBuilder, RootProvider};
+    use crate::cache::{BlockchainDbMeta, JsonBlockCacheDB};
+    use super::*;
+    use alloy_rpc_client::ClientBuilder;
+    use alloy_transport_http::{Client, Http};
+    use std::{collections::BTreeSet, path::PathBuf};
+
+    pub fn get_http_provider(endpoint: &str) -> RootProvider<Http<Client>, AnyNetwork> {
+        ProviderBuilder::new()
+            .network::<AnyNetwork>()
+            .on_client(ClientBuilder::default().http(endpoint.parse().unwrap()))
+    }
+
+    const ENDPOINT: Option<&str> = option_env!("ETH_RPC_URL");
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn shared_backend() {
+        let Some(endpoint) = ENDPOINT else { return };
+
+        let provider = get_http_provider(endpoint);
+        let meta = BlockchainDbMeta {
+            cfg_env: Default::default(),
+            block_env: Default::default(),
+            hosts: BTreeSet::from([endpoint.to_string()]),
+        };
+
+        let db = BlockchainDb::new(meta, None);
+        let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
+
+        // some rng contract from etherscan
+        let address: Address = "63091244180ae240c87d1f528f5f269134cb07b3".parse().unwrap();
+
+        let idx = U256::from(0u64);
+        let value = backend.storage_ref(address, idx).unwrap();
+        let account = backend.basic_ref(address).unwrap().unwrap();
+
+        let mem_acc = db.accounts().read().get(&address).unwrap().clone();
+        assert_eq!(account.balance, mem_acc.balance);
+        assert_eq!(account.nonce, mem_acc.nonce);
+        let slots = db.storage().read().get(&address).unwrap().clone();
+        assert_eq!(slots.len(), 1);
+        assert_eq!(slots.get(&idx).copied().unwrap(), value);
+
+        let num = U256::from(10u64);
+        let hash = backend.block_hash_ref(num).unwrap();
+        let mem_hash = *db.block_hashes().read().get(&num).unwrap();
+        assert_eq!(hash, mem_hash);
+
+        let max_slots = 5;
+        let handle = std::thread::spawn(move || {
+            for i in 1..max_slots {
+                let idx = U256::from(i);
+                let _ = backend.storage_ref(address, idx);
+            }
+        });
+        handle.join().unwrap();
+        let slots = db.storage().read().get(&address).unwrap().clone();
+        assert_eq!(slots.len() as u64, max_slots);
+    }
+
+    #[test]
+    fn can_read_cache() {
+        let cache_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/storage.json");
+        let json = JsonBlockCacheDB::load(cache_path).unwrap();
+        assert!(!json.db().accounts.read().is_empty());
+    }
+}

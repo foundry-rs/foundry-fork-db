@@ -471,3 +471,149 @@ impl Drop for FlushJsonBlockCacheDB {
         trace!(target: "fork::cache", "flushed cache");
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn can_deserialize_cache() {
+        let s = r#"{
+    "meta": {
+        "cfg_env": {
+            "chain_id": 1337,
+            "perf_analyse_created_bytecodes": "Analyse",
+            "limit_contract_code_size": 18446744073709551615,
+            "memory_limit": 4294967295,
+            "disable_block_gas_limit": false,
+            "disable_eip3607": false,
+            "disable_base_fee": false
+        },
+        "block_env": {
+            "number": "0xed3ddf",
+            "coinbase": "0x0000000000000000000000000000000000000000",
+            "timestamp": "0x6324bc3f",
+            "difficulty": "0x0",
+            "basefee": "0x2e5fda223",
+            "gas_limit": "0x1c9c380",
+            "prevrandao": "0x0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "hosts": [
+            "eth-mainnet.alchemyapi.io"
+        ]
+    },
+    "accounts": {
+        "0xb8ffc3cd6e7cf5a098a1c92f48009765b24088dc": {
+            "balance": "0x0",
+            "nonce": 10,
+            "code_hash": "0x3ac64c95eedf82e5d821696a12daac0e1b22c8ee18a9fd688b00cfaf14550aad",
+            "code": {
+                "LegacyAnalyzed": {
+                    "bytecode": "0x00",
+                    "original_len": 0,
+                    "jump_table": {
+                      "order": "bitvec::order::Lsb0",
+                      "head": {
+                        "width": 8,
+                        "index": 0
+                      },
+                      "bits": 1,
+                      "data": [0]
+                    }
+                }
+            }
+        }
+    },
+    "storage": {
+        "0xa354f35829ae975e850e23e9615b11da1b3dc4de": {
+            "0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e564": "0x5553444320795661756c74000000000000000000000000000000000000000000",
+            "0x10": "0x37fd60ff8346",
+            "0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563": "0xb",
+            "0x6": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+            "0x5": "0x36ff5b93162e",
+            "0x14": "0x29d635a8e000",
+            "0x11": "0x63224c73",
+            "0x2": "0x6"
+        }
+    },
+    "block_hashes": {
+        "0xed3deb": "0xbf7be3174b261ea3c377b6aba4a1e05d5fae7eee7aab5691087c20cf353e9877",
+        "0xed3de9": "0xba1c3648e0aee193e7d00dffe4e9a5e420016b4880455641085a4731c1d32eef",
+        "0xed3de8": "0x61d1491c03a9295fb13395cca18b17b4fa5c64c6b8e56ee9cc0a70c3f6cf9855",
+        "0xed3de7": "0xb54560b5baeccd18350d56a3bee4035432294dc9d2b7e02f157813e1dee3a0be",
+        "0xed3dea": "0x816f124480b9661e1631c6ec9ee39350bda79f0cbfc911f925838d88e3d02e4b"
+    }
+}"#;
+
+        let cache: JsonBlockCacheData = serde_json::from_str(s).unwrap();
+        assert_eq!(cache.data.accounts.read().len(), 1);
+        assert_eq!(cache.data.storage.read().len(), 1);
+        assert_eq!(cache.data.block_hashes.read().len(), 5);
+
+        let _s = serde_json::to_string(&cache).unwrap();
+    }
+
+    #[test]
+    fn can_deserialize_cache_post_4844() {
+        let s = r#"{
+    "meta": {
+        "cfg_env": {
+            "chain_id": 1,
+            "kzg_settings": "Default",
+            "perf_analyse_created_bytecodes": "Analyse",
+            "limit_contract_code_size": 18446744073709551615,
+            "memory_limit": 134217728,
+            "disable_block_gas_limit": false,
+            "disable_eip3607": true,
+            "disable_base_fee": false,
+            "optimism": false
+        },
+        "block_env": {
+            "number": "0x11c99bc",
+            "coinbase": "0x4838b106fce9647bdf1e7877bf73ce8b0bad5f97",
+            "timestamp": "0x65627003",
+            "gas_limit": "0x1c9c380",
+            "basefee": "0x64288ff1f",
+            "difficulty": "0xc6b1a299886016dea3865689f8393b9bf4d8f4fe8c0ad25f0058b3569297c057",
+            "prevrandao": "0xc6b1a299886016dea3865689f8393b9bf4d8f4fe8c0ad25f0058b3569297c057",
+            "blob_excess_gas_and_price": {
+                "excess_blob_gas": 0,
+                "blob_gasprice": 1
+            }
+        },
+        "hosts": [
+            "eth-mainnet.alchemyapi.io"
+        ]
+    },
+    "accounts": {
+        "0x4838b106fce9647bdf1e7877bf73ce8b0bad5f97": {
+            "balance": "0x8e0c373cfcdfd0eb",
+            "nonce": 128912,
+            "code_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+            "code": {
+                "LegacyAnalyzed": {
+                    "bytecode": "0x00",
+                    "original_len": 0,
+                    "jump_table": {
+                      "order": "bitvec::order::Lsb0",
+                      "head": {
+                        "width": 8,
+                        "index": 0
+                      },
+                      "bits": 1,
+                      "data": [0]
+                    }
+                }
+            }
+        }
+    },
+    "storage": {},
+    "block_hashes": {}
+}"#;
+
+        let cache: JsonBlockCacheData = serde_json::from_str(s).unwrap();
+        assert_eq!(cache.data.accounts.read().len(), 1);
+
+        let _s = serde_json::to_string(&cache).unwrap();
+    }
+}
