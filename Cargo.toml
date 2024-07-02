@@ -1,12 +1,12 @@
 [package]
-name = "alloy-fork-db"
+name = "foundry-fork-db"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.76"
-authors = ["Alloy Contributors"]
+authors = ["Foundry Contributors"]
 license = "MIT OR Apache-2.0"
-homepage = "https://github.com/alloy-rs/alloy-fork-db"
-repository = "https://github.com/alloy-rs/alloy-fork-db"
+homepage = "https://github.com/foundry-rs/foundry-fork-db"
+repository = "https://github.com/foundry-rs/foundry-fork-db"
 
 [lints]
 rust.unused_must_use = "deny"
