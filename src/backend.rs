@@ -688,9 +688,6 @@ impl DatabaseRef for SharedBackend {
     }
 
     fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
-        if number > u64::MAX {
-            return Ok(KECCAK_EMPTY);
-        }
         trace!(target: "sharedbackend", "request block hash for number {:?}", number);
         self.do_get_block_hash(number).map_err(|err| {
             error!(target: "sharedbackend", %err, %number, "Failed to send/recv `block_hash`");
