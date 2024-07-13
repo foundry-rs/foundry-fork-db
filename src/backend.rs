@@ -687,12 +687,10 @@ impl DatabaseRef for SharedBackend {
         })
     }
 
-    fn block_hash_ref(&self, number: U256) -> Result<B256, Self::Error> {
-        if number > U256::from(u64::MAX) {
+    fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
+        if number > u64::MAX {
             return Ok(KECCAK_EMPTY);
         }
-        let number: U256 = number;
-        let number = number.to();
         trace!(target: "sharedbackend", "request block hash for number {:?}", number);
         self.do_get_block_hash(number).map_err(|err| {
             error!(target: "sharedbackend", %err, %number, "Failed to send/recv `block_hash`");
@@ -749,9 +747,9 @@ mod tests {
         assert_eq!(slots.len(), 1);
         assert_eq!(slots.get(&idx).copied().unwrap(), value);
 
-        let num = U256::from(10u64);
+        let num = 10u64;
         let hash = backend.block_hash_ref(num).unwrap();
-        let mem_hash = *db.block_hashes().read().get(&num).unwrap();
+        let mem_hash = *db.block_hashes().read().get(&U256::from(num)).unwrap();
         assert_eq!(hash, mem_hash);
 
         let max_slots = 5;
