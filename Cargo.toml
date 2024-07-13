@@ -1,23 +1,23 @@
 [package]
-authors = ["Foundry Contributors"]
-description = "Fork database used by Foundry"
-edition = "2021"
-homepage = "https://github.com/foundry-rs/foundry-fork-db"
-license = "MIT OR Apache-2.0"
 name = "foundry-fork-db"
-repository = "https://github.com/foundry-rs/foundry-fork-db"
-rust-version = "1.76"
+description = "Fork database used by Foundry"
 version = "0.1.0"
+edition = "2021"
+rust-version = "1.76"
+authors = ["Foundry Contributors"]
+license = "MIT OR Apache-2.0"
+homepage = "https://github.com/foundry-rs/foundry-fork-db"
+repository = "https://github.com/foundry-rs/foundry-fork-db"
 
 [lints]
-rust.rust_2018_idioms = {level = "deny", priority = -1}
 rust.unused_must_use = "deny"
+rust.rust_2018_idioms = { level = "deny", priority = -1 }
 rustdoc.all = "warn"
 
 [lints.clippy]
 missing_const_for_fn = "warn"
-option_if_let_else = "warn"
 use_self = "warn"
+option_if_let_else = "warn"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -25,28 +25,28 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 alloy-primitives = "0.7.7"
-alloy-provider = {version = "0.1.4", default-features = false}
-alloy-rpc-types = {version = "0.1.4", features = ["eth"]}
-alloy-serde = {version = "0.1.4", default-features = false}
-alloy-transport = {version = "0.1.4", default-features = false}
+alloy-provider = { version = "0.1.4", default-features = false }
+alloy-rpc-types = { version = "0.1.4", features = ["eth"] }
+alloy-serde = { version = "0.1.4", default-features = false }
+alloy-transport = { version = "0.1.4", default-features = false }
 
 eyre = "0.6"
 futures = "0.3"
 
 parking_lot = "0.12"
 
-revm = {version = "11.0.0", features = ["std", "serde"]}
+revm = { version = "11.0.0", features = ["std", "serde"] }
 rustc-hash = "2.0"
 
 serde = "1.0"
 serde_json = "1.0"
 
 thiserror = "1"
-tokio = {version = "1", features = ["rt-multi-thread"]}
+tokio = { version = "1", features = ["rt-multi-thread"] }
 tracing = "0.1"
 
 url = "2"
 
 [dev-dependencies]
-alloy-rpc-client = {version = "0.1.4"}
-alloy-transport-http = {version = "0.1.4"}
+alloy-rpc-client = "0.1.4"
+alloy-transport-http = "0.1.4"
