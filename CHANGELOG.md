@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1](https://github.com/foundry-rs/foundry-fork-db
+/releases/tag/v0.1.1) - 2024-07-15
+
+### Dependencies
+
+- Merge pull request [#5](https://github.com/foundry-rs/foundry-fork-db/issues/5) from foundry-rs/matt/bump-msrv
+- Bump msrv 79
+- Merge pull request [#4](https://github.com/foundry-rs/foundry-fork-db/issues/4) from m1stoyanov/main
+- Bump alloy [provider, rpc-types, serde, transport, rpc-client, transport-http] to 0.1.4, alloy-primitives to 0.7.7 and revm to 11.0.0
+
+### Other
+
+- Remove redundant check
+- Update Cargo.toml according to the reviews
+
 ## [0.1.0](https://github.com/foundry-rs/foundry-fork-db
 /releases/tag/v0.1.0) - 2024-07-02
 
@@ -17,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous Tasks
 
+- Release 0.1.0
 - Init changelog
 - Fix cliff.toml
 - Add description
