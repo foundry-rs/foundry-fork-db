@@ -1,6 +1,6 @@
 //! Smart caching and deduplication of requests when using a forking provider
 use crate::{
-    cache::{BlockchainDb, FlushJsonBlockCacheDB},
+    cache::{BlockchainDb, FlushJsonBlockCacheDB, StorageInfo},
     error::{DatabaseError, DatabaseResult},
 };
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
@@ -657,9 +657,7 @@ impl SharedBackend {
         })
     }
 
-    pub fn insert_ot_update_address(&self, address: Address, data: AccountInfo) {
-        // self.cache.0.as_ref().db().accounts.write().insert(k, v)
-
+    pub fn insert_or_update_address(&self, address: Address, data: AccountInfo) {
         let req = BackendRequest::UpdateAddress(address, data);
         let err = self.backend.clone().try_send(req);
         match err {
@@ -827,7 +825,7 @@ mod tests {
             code_hash: KECCAK_EMPTY,
         };
 
-        backend.insert_ot_update_address(address, new_acc.clone());
+        backend.insert_or_update_address(address, new_acc.clone());
 
         let max_slots = 5;
         let handle = std::thread::spawn(move || {
