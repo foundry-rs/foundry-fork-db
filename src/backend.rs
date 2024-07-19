@@ -81,6 +81,8 @@ enum BackendRequest {
     Transaction(B256, TransactionSender),
     /// Sets the pinned block to fetch data from
     SetPinnedBlock(BlockId),
+
+    UpdateAddress(Address, AccountInfo),
 }
 
 /// Handles an internal provider and listens for requests.
@@ -179,6 +181,9 @@ where
             }
             BackendRequest::SetPinnedBlock(block_id) => {
                 self.block_id = Some(block_id);
+            }
+            BackendRequest::UpdateAddress(address, data) => {
+                self.db.accounts().write().insert(address, data);
             }
         }
     }
@@ -652,6 +657,19 @@ impl SharedBackend {
         })
     }
 
+    pub fn insert_ot_update_address(&self, address: Address, data: AccountInfo) {
+        // self.cache.0.as_ref().db().accounts.write().insert(k, v)
+
+        let req = BackendRequest::UpdateAddress(address, data);
+        let err = self.backend.clone().try_send(req);
+        match err {
+            Ok(_) => (),
+            Err(e) => {
+                error!(target: "sharedbackend", "Failed to send update address request: {:?}", e)
+            }
+        }
+    }
+
     /// Flushes the DB to disk if caching is enabled
     pub fn flush_cache(&self) {
         self.cache.0.flush();
@@ -714,7 +732,8 @@ mod tests {
             .on_client(ClientBuilder::default().http(endpoint.parse().unwrap()))
     }
 
-    const ENDPOINT: Option<&str> = option_env!("ETH_RPC_URL");
+    // const ENDPOINT: Option<&str> = option_env!("ETH_RPC_URL");
+    const ENDPOINT: Option<&str> = Some("https://eth.meowrpc.com");
 
     #[tokio::test(flavor = "multi_thread")]
     async fn shared_backend() {
@@ -766,5 +785,72 @@ mod tests {
         let cache_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/storage.json");
         let json = JsonBlockCacheDB::load(cache_path).unwrap();
         assert!(!json.db().accounts.read().is_empty());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn can_modify_state() {
+        let Some(endpoint) = ENDPOINT else { return };
+
+        let provider = get_http_provider(endpoint);
+        let meta = BlockchainDbMeta {
+            cfg_env: Default::default(),
+            block_env: Default::default(),
+            hosts: BTreeSet::from([endpoint.to_string()]),
+        };
+
+        let db = BlockchainDb::new(meta, None);
+        let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
+
+        // some rng contract from etherscan
+        let address: Address = "63091244180ae240c87d1f528f5f269134cb07b3".parse().unwrap();
+
+        let idx = U256::from(0u64);
+        let value = backend.storage_ref(address, idx).unwrap();
+        let account = backend.basic_ref(address).unwrap().unwrap();
+
+        let mem_acc = db.accounts().read().get(&address).unwrap().clone();
+        assert_eq!(account.balance, mem_acc.balance);
+        assert_eq!(account.nonce, mem_acc.nonce);
+        let slots = db.storage().read().get(&address).unwrap().clone();
+        assert_eq!(slots.len(), 1);
+        assert_eq!(slots.get(&idx).copied().unwrap(), value);
+
+        let num = 10u64;
+        let hash = backend.block_hash_ref(num).unwrap();
+        let mem_hash = *db.block_hashes().read().get(&U256::from(num)).unwrap();
+        assert_eq!(hash, mem_hash);
+
+        let new_acc = AccountInfo {
+            nonce: 1000u64,
+            balance: U256::from(2000),
+            code: None,
+            code_hash: KECCAK_EMPTY,
+        };
+
+        backend.insert_ot_update_address(address, new_acc.clone());
+
+        let max_slots = 5;
+        let handle = std::thread::spawn(move || {
+            for i in 1..max_slots {
+                let idx = U256::from(i);
+                let result = backend.basic_ref(address).unwrap();
+                match result {
+                    Some(acc) => {
+                        assert_eq!(
+                            acc.nonce, new_acc.nonce,
+                            "The nonce was not changed in instance of index {}",
+                            idx
+                        );
+                        assert_eq!(
+                            acc.balance, new_acc.balance,
+                            "The balance was not changed in instance of index {}",
+                            idx
+                        );
+                    }
+                    None => panic!("Account not found"),
+                }
+            }
+        });
+        handle.join().unwrap();
     }
 }
