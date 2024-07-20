@@ -404,6 +404,7 @@ impl JsonBlockCacheDB {
         trace!(target: "cache", "saved json cache");
     }
 
+    /// Flushes the DB to disk
     #[instrument(level = "warn", skip_all, fields(path = ?self.cache_path))]
     pub fn flush_to(&self, cache_path: Option<PathBuf>) {
         let Some(path) = cache_path else {
