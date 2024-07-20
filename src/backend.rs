@@ -16,7 +16,7 @@ use futures::{
     Future, FutureExt,
 };
 use revm::{
-    db::{components::block_hash, DatabaseRef},
+    db::DatabaseRef,
     primitives::{AccountInfo, Bytecode, HashMap as Map, KECCAK_EMPTY},
 };
 use rustc_hash::FxHashMap;
@@ -86,8 +86,11 @@ enum BackendRequest {
     /// Sets the pinned block to fetch data from
     SetPinnedBlock(BlockId),
 
+    /// Update Address data
     UpdateAddress(AddressData),
+    /// Update Storage data
     UpdateStorage(StorageData),
+    /// Update Block Hashes
     UpdateBlockHash(BlockHashData),
 }
 
@@ -914,11 +917,11 @@ mod tests {
                         match result_storage {
                             Ok(stg_db) => {
                                 assert_eq!(
-                                    stg_db, *value, 
+                                    stg_db, *value,
                                     "Storage in slot number {} in address {} do not have the same value", index, address
                                 );
                             }
-                            
+
                             Err(err) => {
                                 panic!("There was a database error: {}", err)
                             }
@@ -956,20 +959,21 @@ mod tests {
 
         backend.insert_or_update_block_hashes(block_hash_data.clone());
 
-        let max_slots:u64 = 5;
+        let max_slots: u64 = 5;
         let handle = std::thread::spawn(move || {
             for i in 1..max_slots {
                 let key = U256::from(i);
-                let result_hash= backend.do_get_block_hash(i);
+                let result_hash = backend.do_get_block_hash(i);
                 match result_hash {
                     Ok(hash) => {
                         assert_eq!(
-                            hash, *block_hash_data.get(&key).unwrap(),
+                            hash,
+                            *block_hash_data.get(&key).unwrap(),
                             "The hash in block {} did not match",
                             key
                         );
                     }
-                    Err(err) => panic!("Hash not found, error: {}", err)
+                    Err(err) => panic!("Hash not found, error: {}", err),
                 }
             }
         });
