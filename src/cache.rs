@@ -403,6 +403,35 @@ impl JsonBlockCacheDB {
 
         trace!(target: "cache", "saved json cache");
     }
+
+    #[instrument(level = "warn", skip_all, fields(path = ?self.cache_path))]
+    pub fn flush_to(&self, cache_path: Option<PathBuf>) {
+        let Some(path) = cache_path else {
+            trace!(target: "cache", "no cache path provided, skipping flush");
+            return;
+        };
+
+        trace!(target: "cache", "saving json cache");
+
+        if let Some(parent) = path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+
+        let file = match fs::File::create(path) {
+            Ok(file) => file,
+            Err(e) => return warn!(target: "cache", %e, "Failed to open json cache for writing"),
+        };
+
+        let mut writer = BufWriter::new(file);
+        if let Err(e) = serde_json::to_writer(&mut writer, &self.data) {
+            return warn!(target: "cache", %e, "Failed to write to json cache");
+        }
+        if let Err(e) = writer.flush() {
+            return warn!(target: "cache", %e, "Failed to flush to json cache");
+        }
+
+        trace!(target: "cache", "saved json cache");
+    }
 }
 
 /// The Data the [JsonBlockCacheDB] can read and flush

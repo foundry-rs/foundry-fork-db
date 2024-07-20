@@ -21,14 +21,10 @@ use revm::{
 };
 use rustc_hash::FxHashMap;
 use std::{
-    collections::{hash_map::Entry, HashMap, VecDeque},
-    future::IntoFuture,
-    marker::PhantomData,
-    pin::Pin,
-    sync::{
+    collections::{hash_map::Entry, HashMap, VecDeque}, future::IntoFuture, marker::PhantomData, path::PathBuf, pin::Pin, sync::{
         mpsc::{channel as oneshot_channel, Sender as OneshotSender},
         Arc,
-    },
+    }
 };
 
 /// Logged when an error is indicative that the user is trying to fork from a non-archive node.
@@ -656,6 +652,11 @@ impl SharedBackend {
     pub fn flush_cache(&self) {
         self.cache.0.flush();
     }
+
+
+    pub fn flush_cache_to(&self, cache_path: Option<PathBuf>) {
+        self.cache.0.flush_to(cache_path);
+    }
 }
 
 impl DatabaseRef for SharedBackend {
@@ -767,4 +768,5 @@ mod tests {
         let json = JsonBlockCacheDB::load(cache_path).unwrap();
         assert!(!json.db().accounts.read().is_empty());
     }
+
 }
