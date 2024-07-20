@@ -16,7 +16,7 @@ use futures::{
     Future, FutureExt,
 };
 use revm::{
-    db::DatabaseRef,
+    db::{components::block_hash, DatabaseRef},
     primitives::{AccountInfo, Bytecode, HashMap as Map, KECCAK_EMPTY},
 };
 use rustc_hash::FxHashMap;
@@ -59,6 +59,7 @@ type TransactionSender = OneshotSender<DatabaseResult<WithOtherFields<Transactio
 
 type AddressData = Map<Address, AccountInfo>;
 type StorageData = Map<Address, StorageInfo>;
+type BlockHashData = Map<U256, B256>;
 
 /// Request variants that are executed by the provider
 enum ProviderRequest<Err> {
@@ -87,6 +88,7 @@ enum BackendRequest {
 
     UpdateAddress(AddressData),
     UpdateStorage(StorageData),
+    UpdateBlockHash(BlockHashData),
 }
 
 /// Handles an internal provider and listens for requests.
@@ -194,6 +196,11 @@ where
             BackendRequest::UpdateStorage(storage_data) => {
                 for (address, data) in storage_data {
                     self.db.storage().write().insert(address, data);
+                }
+            }
+            BackendRequest::UpdateBlockHash(block_hash_data) => {
+                for (block, hash) in block_hash_data {
+                    self.db.block_hashes().write().insert(block, hash);
                 }
             }
         }
@@ -690,6 +697,17 @@ impl SharedBackend {
         }
     }
 
+    pub fn insert_or_update_block_hashes(&self, block_hash_data: BlockHashData) {
+        let req = BackendRequest::UpdateBlockHash(block_hash_data);
+        let err = self.backend.clone().try_send(req);
+        match err {
+            Ok(_) => (),
+            Err(e) => {
+                error!(target: "sharedbackend", "Failed to send update address request: {:?}", e)
+            }
+        }
+    }
+
     /// Flushes the DB to disk if caching is enabled
     pub fn flush_cache(&self) {
         self.cache.0.flush();
@@ -906,6 +924,52 @@ mod tests {
                             }
                         }
                     }
+                }
+            }
+        });
+        handle.join().unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn can_modify_block_hashes() {
+        let Some(endpoint) = ENDPOINT else { return };
+
+        let provider = get_http_provider(endpoint);
+        let meta = BlockchainDbMeta {
+            cfg_env: Default::default(),
+            block_env: Default::default(),
+            hosts: BTreeSet::from([endpoint.to_string()]),
+        };
+
+        let db = BlockchainDb::new(meta, None);
+        let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
+
+        // some rng contract from etherscan
+        // let address: Address = "63091244180ae240c87d1f528f5f269134cb07b3".parse().unwrap();
+
+        let mut block_hash_data: BlockHashData = Map::new();
+        block_hash_data.insert(U256::from(1), B256::from(U256::from(1)));
+        block_hash_data.insert(U256::from(2), B256::from(U256::from(2)));
+        block_hash_data.insert(U256::from(3), B256::from(U256::from(3)));
+        block_hash_data.insert(U256::from(4), B256::from(U256::from(4)));
+        block_hash_data.insert(U256::from(5), B256::from(U256::from(5)));
+
+        backend.insert_or_update_block_hashes(block_hash_data.clone());
+
+        let max_slots:u64 = 5;
+        let handle = std::thread::spawn(move || {
+            for i in 1..max_slots {
+                let key = U256::from(i);
+                let result_hash= backend.do_get_block_hash(i);
+                match result_hash {
+                    Ok(hash) => {
+                        assert_eq!(
+                            hash, *block_hash_data.get(&key).unwrap(),
+                            "The hash in block {} did not match",
+                            key
+                        );
+                    }
+                    Err(err) => panic!("Hash not found, error: {}", err)
                 }
             }
         });
