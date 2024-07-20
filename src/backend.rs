@@ -193,17 +193,20 @@ where
             }
             BackendRequest::UpdateAddress(address_data) => {
                 for (address, data) in address_data {
-                    self.db.accounts().write().insert(address, data);
+                    self.db.accounts().write().insert(address, data.clone());
+                    self.db.cache().db().accounts.write().insert(address, data);
                 }
             }
             BackendRequest::UpdateStorage(storage_data) => {
                 for (address, data) in storage_data {
-                    self.db.storage().write().insert(address, data);
+                    self.db.storage().write().insert(address, data.clone());
+                    self.db.cache().db().storage.write().insert(address, data);
                 }
             }
             BackendRequest::UpdateBlockHash(block_hash_data) => {
                 for (block, hash) in block_hash_data {
-                    self.db.block_hashes().write().insert(block, hash);
+                    self.db.block_hashes().write().insert(block, hash.clone());
+                    self.db.cache().db().block_hashes.write().insert(block, hash);
                 }
             }
         }
@@ -873,6 +876,23 @@ mod tests {
                             "The balance was not changed in instance of index {}",
                             idx
                         );
+
+                        // comparing with db
+                        let db_address = {
+                            let accounts = db.accounts().read();
+                            accounts.get(&address).unwrap().clone()
+                        };
+
+                        assert_eq!(
+                            db_address.nonce, new_acc.nonce,
+                            "The nonce was not changed in instance of index {}",
+                            idx
+                        );
+                        assert_eq!(
+                            db_address.balance, new_acc.balance,
+                            "The balance was not changed in instance of index {}",
+                            idx
+                        );
                     }
                     None => panic!("Account not found"),
                 }
@@ -920,6 +940,17 @@ mod tests {
                                     stg_db, *value,
                                     "Storage in slot number {} in address {} do not have the same value", index, address
                                 );
+
+                                let db_result = {
+                                    let storage = db.storage().read();
+                                    let address_storage = storage.get(address).unwrap();
+                                    address_storage.get(index).unwrap().clone()
+                                };
+
+                                assert_eq!(
+                                    stg_db, db_result,
+                                    "Storage in slot number {} in address {} do not have the same value", index, address
+                                )
                             }
 
                             Err(err) => {
@@ -972,10 +1003,90 @@ mod tests {
                             "The hash in block {} did not match",
                             key
                         );
+
+                        let db_result = {
+                            let hashes = db.block_hashes().read();
+                            hashes.get(&key).unwrap().clone()
+                        };
+
+                        assert_eq!(hash, db_result, "The hash in block {} did not match", key);
                     }
                     Err(err) => panic!("Hash not found, error: {}", err),
                 }
             }
+        });
+        handle.join().unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn can_modify_storage_with_cache() {
+        let Some(endpoint) = ENDPOINT else { return };
+
+        let provider = get_http_provider(endpoint);
+        let meta = BlockchainDbMeta {
+            cfg_env: Default::default(),
+            block_env: Default::default(),
+            hosts: BTreeSet::from([endpoint.to_string()]),
+        };
+
+        let cache_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/storage.json");
+
+        let db = BlockchainDb::new(meta, Some(cache_path));
+        let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
+
+        // some rng contract from etherscan
+        let address: Address = "63091244180ae240c87d1f528f5f269134cb07b3".parse().unwrap();
+
+        let mut storage_data: StorageData = Map::new();
+        let mut storage_info: StorageInfo = Map::new();
+        storage_info.insert(U256::from(1), U256::from(10));
+        storage_info.insert(U256::from(2), U256::from(15));
+        storage_info.insert(U256::from(3), U256::from(20));
+        storage_info.insert(U256::from(4), U256::from(20));
+        storage_info.insert(U256::from(5), U256::from(15));
+        storage_info.insert(U256::from(6), U256::from(10));
+
+        let mut address_data = backend.basic_ref(address).unwrap().unwrap();
+        address_data.code = None;
+
+        storage_data.insert(address, storage_info);
+
+        backend.insert_or_update_storage(storage_data.clone());
+
+        let max_slots = 5;
+        let handle = std::thread::spawn(move || {
+            for _ in 1..max_slots {
+                for (address, info) in &storage_data {
+                    for (index, value) in info {
+                        let result_storage = backend.do_get_storage(*address, index.clone());
+                        match result_storage {
+                            Ok(stg_db) => {
+                                assert_eq!(
+                                    stg_db, *value,
+                                    "Storage in slot number {} in address {} doesn't have the same value", index, address
+                                );
+
+                                let db_result = {
+                                    let storage = db.storage().read();
+                                    let address_storage = storage.get(address).unwrap();
+                                    address_storage.get(index).unwrap().clone()
+                                };
+
+                                assert_eq!(
+                                    stg_db, db_result,
+                                    "Storage in slot number {} in address {} doesn't have the same value", index, address
+                                );
+                            }
+
+                            Err(err) => {
+                                panic!("There was a database error: {}", err)
+                            }
+                        }
+                    }
+                }
+            }
+
+            backend.flush_cache(); // TODO: add testing regarding the json output and compare the cache
         });
         handle.join().unwrap();
     }
