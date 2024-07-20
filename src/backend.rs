@@ -1031,8 +1031,9 @@ mod tests {
 
         let cache_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/storage.json");
 
-        let db = BlockchainDb::new(meta, Some(cache_path));
-        let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
+        let db = BlockchainDb::new(meta.clone(), Some(cache_path));
+        let backend =
+            SharedBackend::spawn_backend(Arc::new(provider.clone()), db.clone(), None).await;
 
         // some rng contract from etherscan
         let address: Address = "63091244180ae240c87d1f528f5f269134cb07b3".parse().unwrap();
@@ -1052,6 +1053,17 @@ mod tests {
         storage_data.insert(address, storage_info);
 
         backend.insert_or_update_storage(storage_data.clone());
+
+        let mut new_acc = backend.basic_ref(address).unwrap().unwrap();
+        // nullify the code
+        new_acc.code = Some(Bytecode::new_raw(([10, 20, 30, 40]).into()));
+
+        let mut account_data: AddressData = Map::new();
+        account_data.insert(address, new_acc.clone());
+
+        backend.insert_or_update_address(account_data);
+
+        let backend_clone = backend.clone();
 
         let max_slots = 5;
         let handle = std::thread::spawn(move || {
@@ -1085,9 +1097,51 @@ mod tests {
                     }
                 }
             }
-
-            backend.flush_cache(); // TODO: add testing regarding the json output and compare the cache
         });
+        handle.join().unwrap();
+
+        backend_clone.flush_cache();
+
+        // read json and confirm the changes to the data
+
+        let cache_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/storage.json");
+
+        let json_db = BlockchainDb::new(meta, Some(cache_path));
+
+        let mut storage_data: StorageData = Map::new();
+        let mut storage_info: StorageInfo = Map::new();
+        storage_info.insert(U256::from(1), U256::from(10));
+        storage_info.insert(U256::from(2), U256::from(15));
+        storage_info.insert(U256::from(3), U256::from(20));
+        storage_info.insert(U256::from(4), U256::from(20));
+        storage_info.insert(U256::from(5), U256::from(15));
+        storage_info.insert(U256::from(6), U256::from(10));
+
+        storage_data.insert(address, storage_info);
+
+        // redo the checks with the data extracted from the json file
+        let max_slots = 5;
+        let handle = std::thread::spawn(move || {
+            for _ in 1..max_slots {
+                for (address, info) in &storage_data {
+                    for (index, value) in info {
+                        let result_storage = {
+                            let storage = json_db.storage().read();
+                            let address_storage = storage.get(address).unwrap().clone();
+                            let tmp = address_storage.get(index).unwrap().clone();
+                            tmp
+                        };
+
+                        assert_eq!(
+                            result_storage, *value,
+                            "Storage in slot number {} in address {} doesn't have the same value",
+                            index, address
+                        );
+                    }
+                }
+            }
+        });
+
         handle.join().unwrap();
     }
 }
