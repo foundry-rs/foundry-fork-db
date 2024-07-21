@@ -193,20 +193,17 @@ where
             }
             BackendRequest::UpdateAddress(address_data) => {
                 for (address, data) in address_data {
-                    self.db.accounts().write().insert(address, data.clone());
-                    self.db.cache().db().accounts.write().insert(address, data);
+                    self.db.accounts().write().insert(address, data);
                 }
             }
             BackendRequest::UpdateStorage(storage_data) => {
                 for (address, data) in storage_data {
-                    self.db.storage().write().insert(address, data.clone());
-                    self.db.cache().db().storage.write().insert(address, data);
+                    self.db.storage().write().insert(address, data);
                 }
             }
             BackendRequest::UpdateBlockHash(block_hash_data) => {
                 for (block, hash) in block_hash_data {
                     self.db.block_hashes().write().insert(block, hash);
-                    self.db.cache().db().block_hashes.write().insert(block, hash);
                 }
             }
         }
