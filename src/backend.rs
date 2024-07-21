@@ -205,7 +205,7 @@ where
             }
             BackendRequest::UpdateBlockHash(block_hash_data) => {
                 for (block, hash) in block_hash_data {
-                    self.db.block_hashes().write().insert(block, hash.clone());
+                    self.db.block_hashes().write().insert(block, hash);
                     self.db.cache().db().block_hashes.write().insert(block, hash);
                 }
             }
@@ -863,7 +863,7 @@ mod tests {
         let handle = std::thread::spawn(move || {
             for i in 1..max_slots {
                 let idx = U256::from(i);
-                let result_address = backend.basic_ref(address.clone()).unwrap();
+                let result_address = backend.basic_ref(address).unwrap();
                 match result_address {
                     Some(acc) => {
                         assert_eq!(
@@ -933,7 +933,7 @@ mod tests {
             for _ in 1..max_slots {
                 for (address, info) in &storage_data {
                     for (index, value) in info {
-                        let result_storage = backend.do_get_storage(*address, index.clone());
+                        let result_storage = backend.do_get_storage(*address, *index);
                         match result_storage {
                             Ok(stg_db) => {
                                 assert_eq!(
@@ -944,7 +944,7 @@ mod tests {
                                 let db_result = {
                                     let storage = db.storage().read();
                                     let address_storage = storage.get(address).unwrap();
-                                    address_storage.get(index).unwrap().clone()
+                                    *address_storage.get(index).unwrap()
                                 };
 
                                 assert_eq!(
@@ -1006,7 +1006,7 @@ mod tests {
 
                         let db_result = {
                             let hashes = db.block_hashes().read();
-                            hashes.get(&key).unwrap().clone()
+                            *hashes.get(&key).unwrap()
                         };
 
                         assert_eq!(hash, db_result, "The hash in block {} did not match", key);
@@ -1070,7 +1070,7 @@ mod tests {
             for _ in 1..max_slots {
                 for (address, info) in &storage_data {
                     for (index, value) in info {
-                        let result_storage = backend.do_get_storage(*address, index.clone());
+                        let result_storage = backend.do_get_storage(*address, *index);
                         match result_storage {
                             Ok(stg_db) => {
                                 assert_eq!(
@@ -1081,7 +1081,7 @@ mod tests {
                                 let db_result = {
                                     let storage = db.storage().read();
                                     let address_storage = storage.get(address).unwrap();
-                                    address_storage.get(index).unwrap().clone()
+                                    *address_storage.get(index).unwrap()
                                 };
 
                                 assert_eq!(
@@ -1128,8 +1128,7 @@ mod tests {
                         let result_storage = {
                             let storage = json_db.storage().read();
                             let address_storage = storage.get(address).unwrap().clone();
-                            let tmp = address_storage.get(index).unwrap().clone();
-                            tmp
+                            *address_storage.get(index).unwrap()
                         };
 
                         assert_eq!(
