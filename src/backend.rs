@@ -765,6 +765,7 @@ mod tests {
     use alloy_provider::{ProviderBuilder, RootProvider};
     use alloy_rpc_client::ClientBuilder;
     use alloy_transport_http::{Client, Http};
+    use std::fs;
     use std::{collections::BTreeSet, path::PathBuf};
 
     pub fn get_http_provider(endpoint: &str) -> RootProvider<Http<Client>, AnyNetwork> {
@@ -1026,7 +1027,11 @@ mod tests {
             hosts: BTreeSet::from([endpoint.to_string()]),
         };
 
-        let cache_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/storage.json");
+        // create a temporary file
+        fs::copy("test-data/storage.json", "test-data/storage-tmp.json").unwrap();
+
+        let cache_path =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/storage-tmp.json");
 
         let db = BlockchainDb::new(meta.clone(), Some(cache_path));
         let backend =
@@ -1094,14 +1099,15 @@ mod tests {
                     }
                 }
             }
+
+            backend_clone.flush_cache();
         });
         handle.join().unwrap();
 
-        backend_clone.flush_cache();
-
         // read json and confirm the changes to the data
 
-        let cache_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/storage.json");
+        let cache_path =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/storage-tmp.json");
 
         let json_db = BlockchainDb::new(meta, Some(cache_path));
 
@@ -1139,5 +1145,7 @@ mod tests {
         });
 
         handle.join().unwrap();
+
+        fs::remove_file("test-data/storage-tmp.json").unwrap();
     }
 }
