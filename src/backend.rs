@@ -765,8 +765,7 @@ mod tests {
     use alloy_provider::{ProviderBuilder, RootProvider};
     use alloy_rpc_client::ClientBuilder;
     use alloy_transport_http::{Client, Http};
-    use std::fs;
-    use std::{collections::BTreeSet, path::PathBuf};
+    use std::{collections::BTreeSet, fs, path::PathBuf};
 
     pub fn get_http_provider(endpoint: &str) -> RootProvider<Http<Client>, AnyNetwork> {
         ProviderBuilder::new()
@@ -774,8 +773,7 @@ mod tests {
             .on_client(ClientBuilder::default().http(endpoint.parse().unwrap()))
     }
 
-    // const ENDPOINT: Option<&str> = option_env!("ETH_RPC_URL");
-    const ENDPOINT: Option<&str> = Some("https://eth.meowrpc.com");
+    const ENDPOINT: Option<&str> = option_env!("ETH_RPC_URL");
 
     #[tokio::test(flavor = "multi_thread")]
     async fn shared_backend() {
