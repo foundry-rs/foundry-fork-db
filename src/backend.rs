@@ -678,6 +678,7 @@ impl SharedBackend {
         })
     }
 
+    /// Inserts or updates data for multiple addresses
     pub fn insert_or_update_address(&self, address_data: AddressData) {
         let req = BackendRequest::UpdateAddress(address_data);
         let err = self.backend.clone().try_send(req);
@@ -689,6 +690,7 @@ impl SharedBackend {
         }
     }
 
+    /// Inserts or updates data for multiple storage slots
     pub fn insert_or_update_storage(&self, storage_data: StorageData) {
         let req = BackendRequest::UpdateStorage(storage_data);
         let err = self.backend.clone().try_send(req);
@@ -700,6 +702,7 @@ impl SharedBackend {
         }
     }
 
+    /// Inserts or updates data for multiple block hashes
     pub fn insert_or_update_block_hashes(&self, block_hash_data: BlockHashData) {
         let req = BackendRequest::UpdateBlockHash(block_hash_data);
         let err = self.backend.clone().try_send(req);
@@ -1144,6 +1147,7 @@ mod tests {
 
         handle.join().unwrap();
 
+        // erase the temporary file
         fs::remove_file("test-data/storage-tmp.json").unwrap();
     }
 }
