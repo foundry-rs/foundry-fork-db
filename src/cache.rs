@@ -385,7 +385,7 @@ impl JsonBlockCacheDB {
         self.flush_to(path.clone());
     }
 
-    /// Flushes the DB to disk
+    /// Flushes the DB to a specific file
     #[instrument(level = "warn", skip_all, fields(path = ?self.cache_path))]
     pub fn flush_to(&self, cache_path: PathBuf) {
         let path: PathBuf = cache_path;

@@ -658,6 +658,7 @@ impl SharedBackend {
         self.cache.0.flush();
     }
 
+    /// Flushes the DB to a specific file
     pub fn flush_cache_to(&self, cache_path: PathBuf) {
         self.cache.0.flush_to(cache_path);
     }
