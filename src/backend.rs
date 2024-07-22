@@ -658,7 +658,7 @@ impl SharedBackend {
         self.cache.0.flush();
     }
 
-    pub fn flush_cache_to(&self, cache_path: Option<PathBuf>) {
+    pub fn flush_cache_to(&self, cache_path: PathBuf) {
         self.cache.0.flush_to(cache_path);
     }
 }
