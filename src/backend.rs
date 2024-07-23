@@ -24,7 +24,7 @@ use std::{
     collections::{hash_map::Entry, HashMap, VecDeque},
     future::IntoFuture,
     marker::PhantomData,
-    path::PathBuf,
+    path::Path,
     pin::Pin,
     sync::{
         mpsc::{channel as oneshot_channel, Sender as OneshotSender},
@@ -659,7 +659,7 @@ impl SharedBackend {
     }
 
     /// Flushes the DB to a specific file
-    pub fn flush_cache_to(&self, cache_path: PathBuf) {
+    pub fn flush_cache_to(&self, cache_path: &Path) {
         self.cache.0.flush_to(cache_path);
     }
 }

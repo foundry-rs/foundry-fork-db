@@ -10,7 +10,7 @@ use std::{
     collections::{BTreeSet, HashMap},
     fs,
     io::{BufWriter, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 use url::Url;
@@ -382,12 +382,12 @@ impl JsonBlockCacheDB {
     #[instrument(level = "warn", skip_all, fields(path = ?self.cache_path))]
     pub fn flush(&self) {
         let Some(path) = &self.cache_path else { return };
-        self.flush_to(path.clone());
+        self.flush_to(path.as_path());
     }
 
     /// Flushes the DB to a specific file
-    pub fn flush_to(&self, cache_path: PathBuf) {
-        let path: PathBuf = cache_path;
+    pub fn flush_to(&self, cache_path: &Path) {
+        let path: &Path = cache_path;
 
         trace!(target: "cache", "saving json cache");
 
