@@ -652,7 +652,7 @@ impl SharedBackend {
         })
     }
 
-    fn do_get_basic(&self, address: Address) -> DatabaseResult<Option<AccountInfo>> {
+    pub fn do_get_basic(&self, address: Address) -> DatabaseResult<Option<AccountInfo>> {
         tokio::task::block_in_place(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::Basic(address, sender);
@@ -661,7 +661,7 @@ impl SharedBackend {
         })
     }
 
-    fn do_get_storage(&self, address: Address, index: U256) -> DatabaseResult<U256> {
+    pub fn do_get_storage(&self, address: Address, index: U256) -> DatabaseResult<U256> {
         tokio::task::block_in_place(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::Storage(address, index, sender);
@@ -670,7 +670,7 @@ impl SharedBackend {
         })
     }
 
-    fn do_get_block_hash(&self, number: u64) -> DatabaseResult<B256> {
+    pub fn do_get_block_hash(&self, number: u64) -> DatabaseResult<B256> {
         tokio::task::block_in_place(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::BlockHash(number, sender);
