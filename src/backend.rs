@@ -1,6 +1,6 @@
 //! Smart caching and deduplication of requests when using a forking provider
 use crate::{
-    cache::{BlockchainDb, FlushJsonBlockCacheDB},
+    cache::{BlockchainDb, FlushJsonBlockCacheDB, StorageInfo},
     error::{DatabaseError, DatabaseResult},
 };
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
@@ -17,7 +17,7 @@ use futures::{
 };
 use revm::{
     db::DatabaseRef,
-    primitives::{AccountInfo, Bytecode, KECCAK_EMPTY},
+    primitives::{AccountInfo, Bytecode, HashMap as Map, KECCAK_EMPTY},
 };
 use rustc_hash::FxHashMap;
 use std::{
@@ -58,6 +58,10 @@ type BlockHashSender = OneshotSender<DatabaseResult<B256>>;
 type FullBlockSender = OneshotSender<DatabaseResult<Block>>;
 type TransactionSender = OneshotSender<DatabaseResult<WithOtherFields<Transaction>>>;
 
+type AddressData = Map<Address, AccountInfo>;
+type StorageData = Map<Address, StorageInfo>;
+type BlockHashData = Map<U256, B256>;
+
 /// Request variants that are executed by the provider
 enum ProviderRequest<Err> {
     Account(AccountFuture<Err>),
@@ -82,6 +86,13 @@ enum BackendRequest {
     Transaction(B256, TransactionSender),
     /// Sets the pinned block to fetch data from
     SetPinnedBlock(BlockId),
+
+    /// Update Address data
+    UpdateAddress(AddressData),
+    /// Update Storage data
+    UpdateStorage(StorageData),
+    /// Update Block Hashes
+    UpdateBlockHash(BlockHashData),
 }
 
 /// Handles an internal provider and listens for requests.
@@ -180,6 +191,21 @@ where
             }
             BackendRequest::SetPinnedBlock(block_id) => {
                 self.block_id = Some(block_id);
+            }
+            BackendRequest::UpdateAddress(address_data) => {
+                for (address, data) in address_data {
+                    self.db.accounts().write().insert(address, data);
+                }
+            }
+            BackendRequest::UpdateStorage(storage_data) => {
+                for (address, data) in storage_data {
+                    self.db.storage().write().insert(address, data);
+                }
+            }
+            BackendRequest::UpdateBlockHash(block_hash_data) => {
+                for (block, hash) in block_hash_data {
+                    self.db.block_hashes().write().insert(block, hash);
+                }
             }
         }
     }
@@ -653,6 +679,42 @@ impl SharedBackend {
         })
     }
 
+    /// Inserts or updates data for multiple addresses
+    pub fn insert_or_update_address(&self, address_data: AddressData) {
+        let req = BackendRequest::UpdateAddress(address_data);
+        let err = self.backend.clone().try_send(req);
+        match err {
+            Ok(_) => (),
+            Err(e) => {
+                error!(target: "sharedbackend", "Failed to send update address request: {:?}", e)
+            }
+        }
+    }
+
+    /// Inserts or updates data for multiple storage slots
+    pub fn insert_or_update_storage(&self, storage_data: StorageData) {
+        let req = BackendRequest::UpdateStorage(storage_data);
+        let err = self.backend.clone().try_send(req);
+        match err {
+            Ok(_) => (),
+            Err(e) => {
+                error!(target: "sharedbackend", "Failed to send update address request: {:?}", e)
+            }
+        }
+    }
+
+    /// Inserts or updates data for multiple block hashes
+    pub fn insert_or_update_block_hashes(&self, block_hash_data: BlockHashData) {
+        let req = BackendRequest::UpdateBlockHash(block_hash_data);
+        let err = self.backend.clone().try_send(req);
+        match err {
+            Ok(_) => (),
+            Err(e) => {
+                error!(target: "sharedbackend", "Failed to send update address request: {:?}", e)
+            }
+        }
+    }
+
     /// Flushes the DB to disk if caching is enabled
     pub fn flush_cache(&self) {
         self.cache.0.flush();
@@ -712,7 +774,7 @@ mod tests {
     use alloy_provider::{ProviderBuilder, RootProvider};
     use alloy_rpc_client::ClientBuilder;
     use alloy_transport_http::{Client, Http};
-    use std::{collections::BTreeSet, path::PathBuf};
+    use std::{collections::BTreeSet, fs, path::PathBuf};
 
     pub fn get_http_provider(endpoint: &str) -> RootProvider<Http<Client>, AnyNetwork> {
         ProviderBuilder::new()
@@ -772,5 +834,326 @@ mod tests {
         let cache_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/storage.json");
         let json = JsonBlockCacheDB::load(cache_path).unwrap();
         assert!(!json.db().accounts.read().is_empty());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn can_modify_address() {
+        let Some(endpoint) = ENDPOINT else { return };
+
+        let provider = get_http_provider(endpoint);
+        let meta = BlockchainDbMeta {
+            cfg_env: Default::default(),
+            block_env: Default::default(),
+            hosts: BTreeSet::from([endpoint.to_string()]),
+        };
+
+        let db = BlockchainDb::new(meta, None);
+        let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
+
+        // some rng contract from etherscan
+        let address: Address = "63091244180ae240c87d1f528f5f269134cb07b3".parse().unwrap();
+
+        let new_acc = AccountInfo {
+            nonce: 1000u64,
+            balance: U256::from(2000),
+            code: None,
+            code_hash: KECCAK_EMPTY,
+        };
+        let mut account_data: AddressData = Map::new();
+        account_data.insert(address, new_acc.clone());
+
+        backend.insert_or_update_address(account_data);
+
+        let max_slots = 5;
+        let handle = std::thread::spawn(move || {
+            for i in 1..max_slots {
+                let idx = U256::from(i);
+                let result_address = backend.basic_ref(address).unwrap();
+                match result_address {
+                    Some(acc) => {
+                        assert_eq!(
+                            acc.nonce, new_acc.nonce,
+                            "The nonce was not changed in instance of index {}",
+                            idx
+                        );
+                        assert_eq!(
+                            acc.balance, new_acc.balance,
+                            "The balance was not changed in instance of index {}",
+                            idx
+                        );
+
+                        // comparing with db
+                        let db_address = {
+                            let accounts = db.accounts().read();
+                            accounts.get(&address).unwrap().clone()
+                        };
+
+                        assert_eq!(
+                            db_address.nonce, new_acc.nonce,
+                            "The nonce was not changed in instance of index {}",
+                            idx
+                        );
+                        assert_eq!(
+                            db_address.balance, new_acc.balance,
+                            "The balance was not changed in instance of index {}",
+                            idx
+                        );
+                    }
+                    None => panic!("Account not found"),
+                }
+            }
+        });
+        handle.join().unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn can_modify_storage() {
+        let Some(endpoint) = ENDPOINT else { return };
+
+        let provider = get_http_provider(endpoint);
+        let meta = BlockchainDbMeta {
+            cfg_env: Default::default(),
+            block_env: Default::default(),
+            hosts: BTreeSet::from([endpoint.to_string()]),
+        };
+
+        let db = BlockchainDb::new(meta, None);
+        let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
+
+        // some rng contract from etherscan
+        let address: Address = "63091244180ae240c87d1f528f5f269134cb07b3".parse().unwrap();
+
+        let mut storage_data: StorageData = Map::new();
+        let mut storage_info: StorageInfo = Map::new();
+        storage_info.insert(U256::from(20), U256::from(10));
+        storage_info.insert(U256::from(30), U256::from(15));
+        storage_info.insert(U256::from(40), U256::from(20));
+
+        storage_data.insert(address, storage_info);
+
+        backend.insert_or_update_storage(storage_data.clone());
+
+        let max_slots = 5;
+        let handle = std::thread::spawn(move || {
+            for _ in 1..max_slots {
+                for (address, info) in &storage_data {
+                    for (index, value) in info {
+                        let result_storage = backend.do_get_storage(*address, *index);
+                        match result_storage {
+                            Ok(stg_db) => {
+                                assert_eq!(
+                                    stg_db, *value,
+                                    "Storage in slot number {} in address {} do not have the same value", index, address
+                                );
+
+                                let db_result = {
+                                    let storage = db.storage().read();
+                                    let address_storage = storage.get(address).unwrap();
+                                    *address_storage.get(index).unwrap()
+                                };
+
+                                assert_eq!(
+                                    stg_db, db_result,
+                                    "Storage in slot number {} in address {} do not have the same value", index, address
+                                )
+                            }
+
+                            Err(err) => {
+                                panic!("There was a database error: {}", err)
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        handle.join().unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn can_modify_block_hashes() {
+        let Some(endpoint) = ENDPOINT else { return };
+
+        let provider = get_http_provider(endpoint);
+        let meta = BlockchainDbMeta {
+            cfg_env: Default::default(),
+            block_env: Default::default(),
+            hosts: BTreeSet::from([endpoint.to_string()]),
+        };
+
+        let db = BlockchainDb::new(meta, None);
+        let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
+
+        // some rng contract from etherscan
+        // let address: Address = "63091244180ae240c87d1f528f5f269134cb07b3".parse().unwrap();
+
+        let mut block_hash_data: BlockHashData = Map::new();
+        block_hash_data.insert(U256::from(1), B256::from(U256::from(1)));
+        block_hash_data.insert(U256::from(2), B256::from(U256::from(2)));
+        block_hash_data.insert(U256::from(3), B256::from(U256::from(3)));
+        block_hash_data.insert(U256::from(4), B256::from(U256::from(4)));
+        block_hash_data.insert(U256::from(5), B256::from(U256::from(5)));
+
+        backend.insert_or_update_block_hashes(block_hash_data.clone());
+
+        let max_slots: u64 = 5;
+        let handle = std::thread::spawn(move || {
+            for i in 1..max_slots {
+                let key = U256::from(i);
+                let result_hash = backend.do_get_block_hash(i);
+                match result_hash {
+                    Ok(hash) => {
+                        assert_eq!(
+                            hash,
+                            *block_hash_data.get(&key).unwrap(),
+                            "The hash in block {} did not match",
+                            key
+                        );
+
+                        let db_result = {
+                            let hashes = db.block_hashes().read();
+                            *hashes.get(&key).unwrap()
+                        };
+
+                        assert_eq!(hash, db_result, "The hash in block {} did not match", key);
+                    }
+                    Err(err) => panic!("Hash not found, error: {}", err),
+                }
+            }
+        });
+        handle.join().unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn can_modify_storage_with_cache() {
+        let Some(endpoint) = ENDPOINT else { return };
+
+        let provider = get_http_provider(endpoint);
+        let meta = BlockchainDbMeta {
+            cfg_env: Default::default(),
+            block_env: Default::default(),
+            hosts: BTreeSet::from([endpoint.to_string()]),
+        };
+
+        // create a temporary file
+        fs::copy("test-data/storage.json", "test-data/storage-tmp.json").unwrap();
+
+        let cache_path =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/storage-tmp.json");
+
+        let db = BlockchainDb::new(meta.clone(), Some(cache_path));
+        let backend =
+            SharedBackend::spawn_backend(Arc::new(provider.clone()), db.clone(), None).await;
+
+        // some rng contract from etherscan
+        let address: Address = "63091244180ae240c87d1f528f5f269134cb07b3".parse().unwrap();
+
+        let mut storage_data: StorageData = Map::new();
+        let mut storage_info: StorageInfo = Map::new();
+        storage_info.insert(U256::from(1), U256::from(10));
+        storage_info.insert(U256::from(2), U256::from(15));
+        storage_info.insert(U256::from(3), U256::from(20));
+        storage_info.insert(U256::from(4), U256::from(20));
+        storage_info.insert(U256::from(5), U256::from(15));
+        storage_info.insert(U256::from(6), U256::from(10));
+
+        let mut address_data = backend.basic_ref(address).unwrap().unwrap();
+        address_data.code = None;
+
+        storage_data.insert(address, storage_info);
+
+        backend.insert_or_update_storage(storage_data.clone());
+
+        let mut new_acc = backend.basic_ref(address).unwrap().unwrap();
+        // nullify the code
+        new_acc.code = Some(Bytecode::new_raw(([10, 20, 30, 40]).into()));
+
+        let mut account_data: AddressData = Map::new();
+        account_data.insert(address, new_acc.clone());
+
+        backend.insert_or_update_address(account_data);
+
+        let backend_clone = backend.clone();
+
+        let max_slots = 5;
+        let handle = std::thread::spawn(move || {
+            for _ in 1..max_slots {
+                for (address, info) in &storage_data {
+                    for (index, value) in info {
+                        let result_storage = backend.do_get_storage(*address, *index);
+                        match result_storage {
+                            Ok(stg_db) => {
+                                assert_eq!(
+                                    stg_db, *value,
+                                    "Storage in slot number {} in address {} doesn't have the same value", index, address
+                                );
+
+                                let db_result = {
+                                    let storage = db.storage().read();
+                                    let address_storage = storage.get(address).unwrap();
+                                    *address_storage.get(index).unwrap()
+                                };
+
+                                assert_eq!(
+                                    stg_db, db_result,
+                                    "Storage in slot number {} in address {} doesn't have the same value", index, address
+                                );
+                            }
+
+                            Err(err) => {
+                                panic!("There was a database error: {}", err)
+                            }
+                        }
+                    }
+                }
+            }
+
+            backend_clone.flush_cache();
+        });
+        handle.join().unwrap();
+
+        // read json and confirm the changes to the data
+
+        let cache_path =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/storage-tmp.json");
+
+        let json_db = BlockchainDb::new(meta, Some(cache_path));
+
+        let mut storage_data: StorageData = Map::new();
+        let mut storage_info: StorageInfo = Map::new();
+        storage_info.insert(U256::from(1), U256::from(10));
+        storage_info.insert(U256::from(2), U256::from(15));
+        storage_info.insert(U256::from(3), U256::from(20));
+        storage_info.insert(U256::from(4), U256::from(20));
+        storage_info.insert(U256::from(5), U256::from(15));
+        storage_info.insert(U256::from(6), U256::from(10));
+
+        storage_data.insert(address, storage_info);
+
+        // redo the checks with the data extracted from the json file
+        let max_slots = 5;
+        let handle = std::thread::spawn(move || {
+            for _ in 1..max_slots {
+                for (address, info) in &storage_data {
+                    for (index, value) in info {
+                        let result_storage = {
+                            let storage = json_db.storage().read();
+                            let address_storage = storage.get(address).unwrap().clone();
+                            *address_storage.get(index).unwrap()
+                        };
+
+                        assert_eq!(
+                            result_storage, *value,
+                            "Storage in slot number {} in address {} doesn't have the same value",
+                            index, address
+                        );
+                    }
+                }
+            }
+        });
+
+        handle.join().unwrap();
+
+        // erase the temporary file
+        fs::remove_file("test-data/storage-tmp.json").unwrap();
     }
 }
