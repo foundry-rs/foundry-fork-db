@@ -533,8 +533,8 @@ impl BlockingMode {
         F: FnOnce() -> R,
     {
         match self {
-            BlockingMode::BlockInPlace => tokio::task::block_in_place(f),
-            BlockingMode::Block => f(),
+            Self::BlockInPlace => tokio::task::block_in_place(f),
+            Self::Block => f(),
         }
     }
 }
