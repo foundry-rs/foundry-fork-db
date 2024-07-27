@@ -517,10 +517,26 @@ where
 }
 
 /// mode for the `SharedBackend` to block or not block when interacting with the `BackendHandler`
-#[derive(Clone, Debug, PartialEq)]
-pub enum BlockingMod {
+#[derive(Default, Clone, Debug, PartialEq)]
+pub enum BlockingMode {
+    /// the mode use `tokio::task::block_in_place()` to block in place
+    #[default]
     BlockInPlace,
+    /// the mode blocks the current task
     Block,
+}
+
+impl BlockingMode {
+    /// run process logic with the blocking mode
+    pub fn run<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce() -> R,
+    {
+        match self {
+            BlockingMode::BlockInPlace => tokio::task::block_in_place(f),
+            BlockingMode::Block => f(),
+        }
+    }
 }
 
 /// A cloneable backend type that shares access to the backend data with all its clones.
@@ -562,7 +578,7 @@ pub struct SharedBackend {
     cache: Arc<FlushJsonBlockCacheDB>,
 
     /// The mode for the `SharedBackend` to block in place or not
-    blocking_mod: BlockingMod,
+    blocking_mode: BlockingMode,
 }
 
 impl SharedBackend {
@@ -633,7 +649,12 @@ impl SharedBackend {
         let (backend, backend_rx) = channel(1);
         let cache = Arc::new(FlushJsonBlockCacheDB(Arc::clone(db.cache())));
         let handler = BackendHandler::new(provider, db, backend_rx, pin_block);
-        (Self { backend, cache, blocking_mod: BlockingMod::BlockInPlace }, handler)
+        (Self { backend, cache, blocking_mode: Default::default() }, handler)
+    }
+
+    /// Returns a new `SharedBackend` and the `BackendHandler` with a specific blocking mode
+    pub fn with_blocking_mode(&self, mode: BlockingMode) -> Self {
+        Self { backend: self.backend.clone(), cache: self.cache.clone(), blocking_mode: mode }
     }
 
     /// Updates the pinned block to fetch data from
@@ -644,115 +665,49 @@ impl SharedBackend {
 
     /// Returns the full block for the given block identifier
     pub fn get_full_block(&self, block: impl Into<BlockId>) -> DatabaseResult<Block> {
-        let block_id = block.into();
-        let place = {
+        self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
-            let req = BackendRequest::FullBlock(block_id, sender);
+            let req = BackendRequest::FullBlock(block.into(), sender);
             self.backend.clone().try_send(req)?;
             rx.recv()?
-        };
-        let block = {
-            let mut backend = self.backend.clone();
-            let (sender, rx) = oneshot_channel();
-            tokio::task::spawn_blocking(move || {
-                let req = BackendRequest::FullBlock(block_id, sender);
-                let _ = backend.try_send(req);
-            });
-            rx.recv()?
-        };
-        match self.blocking_mod {
-            BlockingMod::BlockInPlace => tokio::task::block_in_place(|| place),
-            BlockingMod::Block => block,
-        }
+        })
     }
 
     /// Returns the transaction for the hash
     pub fn get_transaction(&self, tx: B256) -> DatabaseResult<WithOtherFields<Transaction>> {
-        let place = {
+        self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::Transaction(tx, sender);
             self.backend.clone().try_send(req)?;
             rx.recv()?
-        };
-        let block = {
-            let mut backend = self.backend.clone();
-            let (sender, rx) = oneshot_channel();
-            tokio::task::spawn_blocking(move || {
-                let req = BackendRequest::Transaction(tx, sender);
-                let _ = backend.try_send(req);
-            });
-            rx.recv()?
-        };
-        match self.blocking_mod {
-            BlockingMod::BlockInPlace => tokio::task::block_in_place(|| place),
-            BlockingMod::Block => block,
-        }
+        })
     }
 
     fn do_get_basic(&self, address: Address) -> DatabaseResult<Option<AccountInfo>> {
-        let place = {
+        self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::Basic(address, sender);
             self.backend.clone().try_send(req)?;
             rx.recv()?.map(Some)
-        };
-        let block = {
-            let mut backend = self.backend.clone();
-            let (sender, rx) = oneshot_channel();
-            tokio::task::spawn_blocking(move || {
-                let req = BackendRequest::Basic(address, sender);
-                let _ = backend.try_send(req);
-            });
-            rx.recv()?.map(Some)
-        };
-        match self.blocking_mod {
-            BlockingMod::BlockInPlace => tokio::task::block_in_place(|| place),
-            BlockingMod::Block => block,
-        }
+        })
     }
 
     fn do_get_storage(&self, address: Address, index: U256) -> DatabaseResult<U256> {
-        let place = {
+        self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::Storage(address, index, sender);
             self.backend.clone().try_send(req)?;
             rx.recv()?
-        };
-        let block = {
-            let mut backend = self.backend.clone();
-            let (sender, rx) = oneshot_channel();
-            tokio::task::spawn_blocking(move || {
-                let req = BackendRequest::Storage(address, index, sender);
-                let _ = backend.try_send(req);
-            });
-            rx.recv()?
-        };
-        match self.blocking_mod {
-            BlockingMod::BlockInPlace => tokio::task::block_in_place(|| place),
-            BlockingMod::Block => block,
-        }
+        })
     }
 
     fn do_get_block_hash(&self, number: u64) -> DatabaseResult<B256> {
-        let process_req = {
+        self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::BlockHash(number, sender);
             self.backend.clone().try_send(req)?;
             rx.recv()?
-        };
-        let block = {
-            let mut backend = self.backend.clone();
-            let (sender, rx) = oneshot_channel();
-            tokio::task::spawn_blocking(move || {
-                let req = BackendRequest::BlockHash(number, sender);
-                let _ = backend.try_send(req);
-            });
-            rx.recv()?
-        };
-        match self.blocking_mod {
-            BlockingMod::BlockInPlace => tokio::task::block_in_place(|| process_req),
-            BlockingMod::Block => block,
-        }
+        })
     }
 
     /// Inserts or updates data for multiple addresses
