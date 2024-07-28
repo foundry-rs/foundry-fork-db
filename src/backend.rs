@@ -1,6 +1,6 @@
 //! Smart caching and deduplication of requests when using a forking provider
 use crate::{
-    cache::{BlockchainDb, FlushJsonBlockCacheDB, StorageInfo},
+    cache::{BlockchainDb, FlushJsonBlockCacheDB, MemDb, StorageInfo},
     error::{DatabaseError, DatabaseResult},
 };
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
@@ -723,6 +723,40 @@ impl SharedBackend {
     /// Flushes the DB to a specific file
     pub fn flush_cache_to(&self, cache_path: &Path) {
         self.cache.0.flush_to(cache_path);
+    }
+
+    /// Returns the DB
+    pub fn data(&self) -> DatabaseResult<Arc<MemDb>> {
+        Ok(self.cache.0.db().clone())
+    }
+
+    /// Returns the DB accounts
+    pub fn accounts(&self) -> DatabaseResult<AddressData> {
+        Ok(self.cache.0.db().accounts.read().clone())
+    }
+
+    /// Returns the DB accounts length
+    pub fn accounts_len(&self) -> usize {
+        self.cache.0.db().accounts.read().len()
+    }
+
+    /// Returns the DB storage
+    pub fn storage(&self) -> DatabaseResult<StorageData> {
+        Ok(self.cache.0.db().storage.read().clone())
+    }
+
+    /// Returns the DB storage length
+    pub fn storage_len(&self) -> usize {
+        self.cache.0.db().storage.read().len()
+    }
+
+    /// Returns the DB block_hashes
+    pub fn block_hashes(&self) -> DatabaseResult<BlockHashData> {
+        Ok(self.cache.0.db().block_hashes.read().clone())
+    }
+    /// Returns the DB block_hashes length
+    pub fn block_hashes_len(&self) -> usize {
+        self.cache.0.db().block_hashes.read().len()
     }
 }
 
