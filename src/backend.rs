@@ -516,6 +516,29 @@ where
     }
 }
 
+/// mode for the `SharedBackend` to block or not block when interacting with the `BackendHandler`
+#[derive(Default, Clone, Debug, PartialEq)]
+pub enum BlockingMode {
+    /// the mode use `tokio::task::block_in_place()` to block in place
+    #[default]
+    BlockInPlace,
+    /// the mode blocks the current task
+    Block,
+}
+
+impl BlockingMode {
+    /// run process logic with the blocking mode
+    pub fn run<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce() -> R,
+    {
+        match self {
+            Self::BlockInPlace => tokio::task::block_in_place(f),
+            Self::Block => f(),
+        }
+    }
+}
+
 /// A cloneable backend type that shares access to the backend data with all its clones.
 ///
 /// This backend type is connected to the `BackendHandler` via a mpsc channel. The `BackendHandler`
@@ -553,6 +576,9 @@ pub struct SharedBackend {
     /// There is only one instance of the type, so as soon as the last `SharedBackend` is deleted,
     /// `FlushJsonBlockCacheDB` is also deleted and the cache is flushed.
     cache: Arc<FlushJsonBlockCacheDB>,
+
+    /// The mode for the `SharedBackend` to block in place or not
+    blocking_mode: BlockingMode,
 }
 
 impl SharedBackend {
@@ -623,7 +649,12 @@ impl SharedBackend {
         let (backend, backend_rx) = channel(1);
         let cache = Arc::new(FlushJsonBlockCacheDB(Arc::clone(db.cache())));
         let handler = BackendHandler::new(provider, db, backend_rx, pin_block);
-        (Self { backend, cache }, handler)
+        (Self { backend, cache, blocking_mode: Default::default() }, handler)
+    }
+
+    /// Returns a new `SharedBackend` and the `BackendHandler` with a specific blocking mode
+    pub fn with_blocking_mode(&self, mode: BlockingMode) -> Self {
+        Self { backend: self.backend.clone(), cache: self.cache.clone(), blocking_mode: mode }
     }
 
     /// Updates the pinned block to fetch data from
@@ -634,7 +665,7 @@ impl SharedBackend {
 
     /// Returns the full block for the given block identifier
     pub fn get_full_block(&self, block: impl Into<BlockId>) -> DatabaseResult<Block> {
-        tokio::task::block_in_place(|| {
+        self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::FullBlock(block.into(), sender);
             self.backend.clone().try_send(req)?;
@@ -644,7 +675,7 @@ impl SharedBackend {
 
     /// Returns the transaction for the hash
     pub fn get_transaction(&self, tx: B256) -> DatabaseResult<WithOtherFields<Transaction>> {
-        tokio::task::block_in_place(|| {
+        self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::Transaction(tx, sender);
             self.backend.clone().try_send(req)?;
@@ -653,7 +684,7 @@ impl SharedBackend {
     }
 
     fn do_get_basic(&self, address: Address) -> DatabaseResult<Option<AccountInfo>> {
-        tokio::task::block_in_place(|| {
+        self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::Basic(address, sender);
             self.backend.clone().try_send(req)?;
@@ -662,7 +693,7 @@ impl SharedBackend {
     }
 
     fn do_get_storage(&self, address: Address, index: U256) -> DatabaseResult<U256> {
-        tokio::task::block_in_place(|| {
+        self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::Storage(address, index, sender);
             self.backend.clone().try_send(req)?;
@@ -671,7 +702,7 @@ impl SharedBackend {
     }
 
     fn do_get_block_hash(&self, number: u64) -> DatabaseResult<B256> {
-        tokio::task::block_in_place(|| {
+        self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::BlockHash(number, sender);
             self.backend.clone().try_send(req)?;
