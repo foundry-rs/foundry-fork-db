@@ -726,13 +726,13 @@ impl SharedBackend {
     }
 
     /// Returns the DB
-    pub fn data(&self) -> DatabaseResult<Arc<MemDb>> {
-        Ok(self.cache.0.db().clone())
+    pub fn data(&self) -> Arc<MemDb> {
+        self.cache.0.db().clone()
     }
 
     /// Returns the DB accounts
-    pub fn accounts(&self) -> DatabaseResult<AddressData> {
-        Ok(self.cache.0.db().accounts.read().clone())
+    pub fn accounts(&self) -> AddressData {
+        self.cache.0.db().accounts.read().clone()
     }
 
     /// Returns the DB accounts length
@@ -741,8 +741,8 @@ impl SharedBackend {
     }
 
     /// Returns the DB storage
-    pub fn storage(&self) -> DatabaseResult<StorageData> {
-        Ok(self.cache.0.db().storage.read().clone())
+    pub fn storage(&self) -> StorageData {
+        self.cache.0.db().storage.read().clone()
     }
 
     /// Returns the DB storage length
@@ -751,9 +751,10 @@ impl SharedBackend {
     }
 
     /// Returns the DB block_hashes
-    pub fn block_hashes(&self) -> DatabaseResult<BlockHashData> {
-        Ok(self.cache.0.db().block_hashes.read().clone())
+    pub fn block_hashes(&self) -> BlockHashData {
+        self.cache.0.db().block_hashes.read().clone()
     }
+
     /// Returns the DB block_hashes length
     pub fn block_hashes_len(&self) -> usize {
         self.cache.0.db().block_hashes.read().len()
