@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1](https://github.com/foundry-rs/foundry-fork-db
+/releases/tag/v0.2.1) - 2024-08-08
+
+### Bug Fixes
+
+- Fix clippy
+- Fix-tests after checking
+
+### Dependencies
+
+- Merge pull request [#17](https://github.com/foundry-rs/foundry-fork-db/issues/17) from foundry-rs/matt/bump-revm13
+- Bump revm 13
+- Undo bump version
+- Bump version of crate
+- Merge bump-revm
+
+### Documentation
+
+- Docs to functions
+- Docs
+
+### Other
+
+- Merge pull request [#16](https://github.com/foundry-rs/foundry-fork-db/issues/16) from m1stoyanov/patch-1
+- Remove the unnecessary result from the helper functions
+- Provide helper methods for MemDb data
+- Merge pull request [#13](https://github.com/foundry-rs/foundry-fork-db/issues/13) from nkysg/sharedbackend_behaviour
+- Update process logic
+- Add BlockingMod::Block process
+-  add configure for SharedBackend block_in_place or not
+- Merge pull request [#10](https://github.com/foundry-rs/foundry-fork-db/issues/10) from Ethanol48/update_state
+- Eliminated tmp ETH_RPC
+- Added tmp file for testing
+- Eliminate reduntant code
+- Add tests to verify if the data was properly updated
+- Added db to test to verify data
+- Add minor changes
+- Update block hashes
+- Typo
+- Update address in db
+- Update revm
+- Merge pull request [#12](https://github.com/foundry-rs/foundry-fork-db/issues/12) from Ethanol48/flush_to_file
+- Change to &Path
+- Eliminate reduntant code
+- Merge branch 'main' of https://github.com/Ethanol48/foundry-fork-db into flush_to_file
+
+### Refactor
+
+- Refactor and storage update
+- Refactoring
+
 ## [0.2.0](https://github.com/foundry-rs/foundry-fork-db
 /releases/tag/v0.2.0) - 2024-07-17
 
@@ -14,6 +65,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump revm
 - Merge pull request [#7](https://github.com/foundry-rs/foundry-fork-db/issues/7) from foundry-rs/matt/bump-revm-alloy
 - Bump alloy and revm
+
+### Miscellaneous Tasks
+
+- Release 0.2.0
+
+### Other
+
+- Formating
+- Add documentation
+- Add flush to arbitrary file
 
 ## [0.1.1](https://github.com/foundry-rs/foundry-fork-db
 /releases/tag/v0.1.1) - 2024-07-15
