@@ -660,7 +660,7 @@ impl SharedBackend {
     /// Updates the pinned block to fetch data from
     pub fn set_pinned_block(&self, block: impl Into<BlockId>) -> eyre::Result<()> {
         let req = BackendRequest::SetPinnedBlock(block.into());
-        self.backend.clone().unbounded_send(req).map_err(|e| eyre::eyre!("{:?}", e))
+        self.backend.unbounded_send(req).map_err(|e| eyre::eyre!("{:?}", e))
     }
 
     /// Returns the full block for the given block identifier
@@ -668,7 +668,7 @@ impl SharedBackend {
         self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::FullBlock(block.into(), sender);
-            self.backend.clone().unbounded_send(req)?;
+            self.backend.unbounded_send(req)?;
             rx.recv()?
         })
     }
@@ -678,7 +678,7 @@ impl SharedBackend {
         self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::Transaction(tx, sender);
-            self.backend.clone().unbounded_send(req)?;
+            self.backend.unbounded_send(req)?;
             rx.recv()?
         })
     }
@@ -687,7 +687,7 @@ impl SharedBackend {
         self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::Basic(address, sender);
-            self.backend.clone().unbounded_send(req)?;
+            self.backend.unbounded_send(req)?;
             rx.recv()?.map(Some)
         })
     }
@@ -696,7 +696,7 @@ impl SharedBackend {
         self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::Storage(address, index, sender);
-            self.backend.clone().unbounded_send(req)?;
+            self.backend.unbounded_send(req)?;
             rx.recv()?
         })
     }
@@ -705,7 +705,7 @@ impl SharedBackend {
         self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::BlockHash(number, sender);
-            self.backend.clone().unbounded_send(req)?;
+            self.backend.unbounded_send(req)?;
             rx.recv()?
         })
     }
@@ -713,7 +713,7 @@ impl SharedBackend {
     /// Inserts or updates data for multiple addresses
     pub fn insert_or_update_address(&self, address_data: AddressData) {
         let req = BackendRequest::UpdateAddress(address_data);
-        let err = self.backend.clone().unbounded_send(req);
+        let err = self.backend.unbounded_send(req);
         match err {
             Ok(_) => (),
             Err(e) => {
@@ -725,7 +725,7 @@ impl SharedBackend {
     /// Inserts or updates data for multiple storage slots
     pub fn insert_or_update_storage(&self, storage_data: StorageData) {
         let req = BackendRequest::UpdateStorage(storage_data);
-        let err = self.backend.clone().unbounded_send(req);
+        let err = self.backend.unbounded_send(req);
         match err {
             Ok(_) => (),
             Err(e) => {
@@ -737,7 +737,7 @@ impl SharedBackend {
     /// Inserts or updates data for multiple block hashes
     pub fn insert_or_update_block_hashes(&self, block_hash_data: BlockHashData) {
         let req = BackendRequest::UpdateBlockHash(block_hash_data);
-        let err = self.backend.clone().unbounded_send(req);
+        let err = self.backend.unbounded_send(req);
         match err {
             Ok(_) => (),
             Err(e) => {
