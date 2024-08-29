@@ -3,6 +3,7 @@ name = "foundry-fork-db"
 description = "Fork database used by Foundry"
 version = "0.2.1"
 edition = "2021"
+# Remember to update clippy.toml as well
 rust-version = "1.79"
 authors = ["Foundry Contributors"]
 license = "MIT OR Apache-2.0"
