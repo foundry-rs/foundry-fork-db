@@ -3,6 +3,7 @@ name = "foundry-fork-db"
 description = "Fork database used by Foundry"
 version = "0.2.1"
 edition = "2021"
+# Remember to update clippy.toml as well
 rust-version = "1.79"
 authors = ["Foundry Contributors"]
 license = "MIT OR Apache-2.0"
@@ -24,18 +25,18 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-alloy-primitives = "0.7.7"
-alloy-provider = { version = "0.2", default-features = false }
-alloy-rpc-types = { version = "0.2", features = ["eth"] }
-alloy-serde = { version = "0.2", default-features = false }
-alloy-transport = { version = "0.2", default-features = false }
+alloy-primitives = "0.8"
+alloy-provider = { version = "0.3", default-features = false }
+alloy-rpc-types = { version = "0.3", features = ["eth"] }
+alloy-serde = { version = "0.3", default-features = false }
+alloy-transport = { version = "0.3", default-features = false }
 
 eyre = "0.6"
 futures = "0.3"
 
 parking_lot = "0.12"
 
-revm = { version = "13", features = ["std", "serde"] }
+revm = { version = "14", features = ["std", "serde"] }
 rustc-hash = "2.0"
 
 serde = "1.0"
@@ -48,5 +49,5 @@ tracing = "0.1"
 url = "2"
 
 [dev-dependencies]
-alloy-rpc-client = "0.2"
-alloy-transport-http = "0.2"
+alloy-rpc-client = "0.3"
+alloy-transport-http = "0.3"

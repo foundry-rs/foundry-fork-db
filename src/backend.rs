@@ -43,8 +43,17 @@ type AccountFuture<Err> =
     Pin<Box<dyn Future<Output = (Result<(U256, u64, Bytes), Err>, Address)> + Send>>;
 type StorageFuture<Err> = Pin<Box<dyn Future<Output = (Result<U256, Err>, Address, U256)> + Send>>;
 type BlockHashFuture<Err> = Pin<Box<dyn Future<Output = (Result<B256, Err>, u64)> + Send>>;
-type FullBlockFuture<Err> =
-    Pin<Box<dyn Future<Output = (FullBlockSender, Result<Option<Block>, Err>, BlockId)> + Send>>;
+type FullBlockFuture<Err> = Pin<
+    Box<
+        dyn Future<
+                Output = (
+                    FullBlockSender,
+                    Result<Option<WithOtherFields<Block<WithOtherFields<Transaction>>>>, Err>,
+                    BlockId,
+                ),
+            > + Send,
+    >,
+>;
 type TransactionFuture<Err> = Pin<
     Box<
         dyn Future<Output = (TransactionSender, Result<WithOtherFields<Transaction>, Err>, B256)>
@@ -55,7 +64,8 @@ type TransactionFuture<Err> = Pin<
 type AccountInfoSender = OneshotSender<DatabaseResult<AccountInfo>>;
 type StorageSender = OneshotSender<DatabaseResult<U256>>;
 type BlockHashSender = OneshotSender<DatabaseResult<B256>>;
-type FullBlockSender = OneshotSender<DatabaseResult<Block>>;
+type FullBlockSender =
+    OneshotSender<DatabaseResult<WithOtherFields<Block<WithOtherFields<Transaction>>>>>;
 type TransactionSender = OneshotSender<DatabaseResult<WithOtherFields<Transaction>>>;
 
 type AddressData = Map<Address, AccountInfo>;
@@ -310,10 +320,7 @@ where
                         .wrap_err("failed to get block");
 
                     let block_hash = match block {
-                        Ok(Some(block)) => Ok(block
-                            .header
-                            .hash
-                            .expect("empty block hash on mined block, this should never happen")),
+                        Ok(Some(block)) => Ok(block.header.hash),
                         Ok(None) => {
                             warn!(target: "backendhandler", ?number, "block not found");
                             // if no block was returned then the block does not exist, in which case
@@ -664,7 +671,10 @@ impl SharedBackend {
     }
 
     /// Returns the full block for the given block identifier
-    pub fn get_full_block(&self, block: impl Into<BlockId>) -> DatabaseResult<Block> {
+    pub fn get_full_block(
+        &self,
+        block: impl Into<BlockId>,
+    ) -> DatabaseResult<WithOtherFields<Block<WithOtherFields<Transaction>>>> {
         self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::FullBlock(block.into(), sender);
