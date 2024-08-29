@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0](https://github.com/foundry-rs/foundry-fork-db
+/releases/tag/v0.3.0) - 2024-08-29
+
+### Bug Fixes
+
+- Fix fmt
+
+### Dependencies
+
+- Merge pull request [#19](https://github.com/foundry-rs/foundry-fork-db/issues/19) from foundry-rs/matt/bump-alloy03
+- Bump alloy
+
+### Other
+
+- Update
+- Merge pull request [#18](https://github.com/foundry-rs/foundry-fork-db/issues/18) from nkysg/unbound_channel
+- Rm clone
+- Replace bounded channel with unbounded channel
+
 ## [0.2.1](https://github.com/foundry-rs/foundry-fork-db
 /releases/tag/v0.2.1) - 2024-08-08
 
@@ -25,6 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Docs to functions
 - Docs
+
+### Miscellaneous Tasks
+
+- Release 0.2.1
 
 ### Other
 
