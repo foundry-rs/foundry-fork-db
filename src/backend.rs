@@ -312,8 +312,7 @@ where
                     let block_hash = match block {
                         Ok(Some(block)) => Ok(block
                             .header
-                            .hash
-                            .expect("empty block hash on mined block, this should never happen")),
+                            .hash),
                         Ok(None) => {
                             warn!(target: "backendhandler", ?number, "block not found");
                             // if no block was returned then the block does not exist, in which case
