@@ -166,7 +166,7 @@ impl BlockchainDbMeta {
 
     /// Infers the host from the provided url and adds it to the set of hosts
     pub fn with_url(mut self, url: &str) -> Self {
-        let host = Url::parse(&url)
+        let host = Url::parse(url)
             .ok()
             .and_then(|url| url.host().map(|host| host.to_string()))
             .unwrap_or(url.to_string());
