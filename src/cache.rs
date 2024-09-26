@@ -4,14 +4,15 @@ use alloy_provider::network::{HeaderResponse, TransactionResponse};
 use parking_lot::RwLock;
 use revm::{
     primitives::{
-        map::AddressHashMap, Account, AccountInfo, AccountStatus, BlobExcessGasAndPrice, BlockEnv,
-        CfgEnv, HashMap as Map, KECCAK_EMPTY,
+        map::{AddressHashMap, HashMap},
+        Account, AccountInfo, AccountStatus, BlobExcessGasAndPrice, BlockEnv, CfgEnv,
+        HashMap as Map, KECCAK_EMPTY,
     },
     DatabaseCommit,
 };
 use serde::{ser::SerializeMap, Deserialize, Deserializer, Serialize, Serializer};
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::BTreeSet,
     fs,
     io::{BufWriter, Write},
     path::{Path, PathBuf},
