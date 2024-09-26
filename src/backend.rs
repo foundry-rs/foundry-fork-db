@@ -68,8 +68,9 @@ type FullBlockSender =
     OneshotSender<DatabaseResult<WithOtherFields<Block<WithOtherFields<Transaction>>>>>;
 type TransactionSender = OneshotSender<DatabaseResult<WithOtherFields<Transaction>>>;
 
-type AddressData = Map<Address, AccountInfo>;
-type StorageData = Map<Address, StorageInfo>;
+use alloy_primitives::map::AddressHashMap;
+type AddressData = AddressHashMap<AccountInfo>;
+type StorageData = AddressHashMap<StorageInfo>;
 type BlockHashData = Map<U256, B256>;
 
 /// Request variants that are executed by the provider
@@ -935,7 +936,7 @@ mod tests {
             code: None,
             code_hash: KECCAK_EMPTY,
         };
-        let mut account_data: AddressData = Map::new();
+        let mut account_data: AddressData = Map::default();
         account_data.insert(address, new_acc.clone());
 
         backend.insert_or_update_address(account_data);
@@ -999,8 +1000,8 @@ mod tests {
         // some rng contract from etherscan
         let address: Address = "63091244180ae240c87d1f528f5f269134cb07b3".parse().unwrap();
 
-        let mut storage_data: StorageData = Map::new();
-        let mut storage_info: StorageInfo = Map::new();
+        let mut storage_data: StorageData = Map::default();
+        let mut storage_info: StorageInfo = Map::default();
         storage_info.insert(U256::from(20), U256::from(10));
         storage_info.insert(U256::from(30), U256::from(15));
         storage_info.insert(U256::from(40), U256::from(20));
@@ -1062,7 +1063,7 @@ mod tests {
         // some rng contract from etherscan
         // let address: Address = "63091244180ae240c87d1f528f5f269134cb07b3".parse().unwrap();
 
-        let mut block_hash_data: BlockHashData = Map::new();
+        let mut block_hash_data: BlockHashData = Map::default();
         block_hash_data.insert(U256::from(1), B256::from(U256::from(1)));
         block_hash_data.insert(U256::from(2), B256::from(U256::from(2)));
         block_hash_data.insert(U256::from(3), B256::from(U256::from(3)));
@@ -1123,8 +1124,8 @@ mod tests {
         // some rng contract from etherscan
         let address: Address = "63091244180ae240c87d1f528f5f269134cb07b3".parse().unwrap();
 
-        let mut storage_data: StorageData = Map::new();
-        let mut storage_info: StorageInfo = Map::new();
+        let mut storage_data: StorageData = Map::default();
+        let mut storage_info: StorageInfo = Map::default();
         storage_info.insert(U256::from(1), U256::from(10));
         storage_info.insert(U256::from(2), U256::from(15));
         storage_info.insert(U256::from(3), U256::from(20));
@@ -1143,7 +1144,7 @@ mod tests {
         // nullify the code
         new_acc.code = Some(Bytecode::new_raw(([10, 20, 30, 40]).into()));
 
-        let mut account_data: AddressData = Map::new();
+        let mut account_data: AddressData = Map::default();
         account_data.insert(address, new_acc.clone());
 
         backend.insert_or_update_address(account_data);
@@ -1194,8 +1195,8 @@ mod tests {
 
         let json_db = BlockchainDb::new(meta, Some(cache_path));
 
-        let mut storage_data: StorageData = Map::new();
-        let mut storage_info: StorageInfo = Map::new();
+        let mut storage_data: StorageData = Map::default();
+        let mut storage_info: StorageInfo = Map::default();
         storage_info.insert(U256::from(1), U256::from(10));
         storage_info.insert(U256::from(2), U256::from(15));
         storage_info.insert(U256::from(3), U256::from(20));
