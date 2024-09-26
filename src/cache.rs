@@ -147,7 +147,7 @@ impl BlockchainDbMeta {
     }
 
     /// Sets the [BlockEnv] of this instance using the provided [alloy_rpc_types::Block]
-    pub fn with_block<T: TransactionResponse>(mut self, block: alloy_rpc_types::Block<T>) -> Self {
+    pub fn with_block<T: TransactionResponse>(mut self, block: &alloy_rpc_types::Block<T>) -> Self {
         self.block_env = BlockEnv {
             number: U256::from(block.header.number()),
             coinbase: block.header.coinbase(),
@@ -165,7 +165,7 @@ impl BlockchainDbMeta {
     }
 
     /// Infers the host from the provided url and adds it to the set of hosts
-    pub fn with_url(mut self, url: String) -> Self {
+    pub fn with_url(mut self, url: &str) -> Self {
         let host = Url::parse(&url)
             .ok()
             .and_then(|url| url.host().map(|host| host.to_string()))
