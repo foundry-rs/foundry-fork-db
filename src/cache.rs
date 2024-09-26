@@ -169,7 +169,7 @@ impl BlockchainDbMeta {
         let host = Url::parse(&url)
             .ok()
             .and_then(|url| url.host().map(|host| host.to_string()))
-            .unwrap_or(url);
+            .unwrap_or(url.to_string());
         self.hosts.insert(host);
         self
     }
