@@ -1,8 +1,12 @@
 //! Cache related abstraction
 use alloy_primitives::{Address, B256, U256};
+use alloy_provider::network::{HeaderResponse, TransactionResponse};
 use parking_lot::RwLock;
 use revm::{
-    primitives::{Account, AccountInfo, AccountStatus, HashMap as Map, KECCAK_EMPTY},
+    primitives::{
+        Account, AccountInfo, AccountStatus, BlobExcessGasAndPrice, BlockEnv, CfgEnv,
+        HashMap as Map, KECCAK_EMPTY,
+    },
     DatabaseCommit,
 };
 use serde::{ser::SerializeMap, Deserialize, Deserializer, Serialize, Serializer};
@@ -115,10 +119,10 @@ impl BlockchainDb {
 }
 
 /// relevant identifying markers in the context of [BlockchainDb]
-#[derive(Clone, Debug, Eq, Serialize)]
+#[derive(Clone, Debug, Eq, Serialize, Default)]
 pub struct BlockchainDbMeta {
-    pub cfg_env: revm::primitives::CfgEnv,
-    pub block_env: revm::primitives::BlockEnv,
+    pub cfg_env: CfgEnv,
+    pub block_env: BlockEnv,
     /// all the hosts used to connect to
     pub hosts: BTreeSet<String>,
 }
@@ -132,6 +136,52 @@ impl BlockchainDbMeta {
             .unwrap_or(url);
 
         Self { cfg_env: env.cfg.clone(), block_env: env.block, hosts: BTreeSet::from([host]) }
+    }
+
+    /// Sets the chain_id in the [CfgEnv] of this instance.
+    ///
+    /// Remaining fields of [CfgEnv] are left unchanged.
+    pub const fn with_chain_id(mut self, chain_id: u64) -> Self {
+        self.cfg_env.chain_id = chain_id;
+        self
+    }
+
+    /// Sets the [BlockEnv] of this instance using the provided [alloy_rpc_types::Block]
+    pub fn with_block<T: TransactionResponse>(mut self, block: alloy_rpc_types::Block<T>) -> Self {
+        self.block_env = BlockEnv {
+            number: U256::from(block.header.number()),
+            coinbase: block.header.coinbase(),
+            timestamp: U256::from(block.header.timestamp()),
+            difficulty: U256::from(block.header.difficulty()),
+            basefee: block.header.base_fee_per_gas().map(U256::from).unwrap_or_default(),
+            gas_limit: U256::from(block.header.gas_limit()),
+            prevrandao: block.header.mix_hash(),
+            blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(
+                block.header.excess_blob_gas.map(|gas| gas as u64).unwrap_or_default(),
+            )),
+        };
+
+        self
+    }
+
+    /// Infers the host from the provided url and adds it to the set of hosts
+    pub fn with_url(mut self, url: String) -> Self {
+        let host = Url::parse(&url)
+            .ok()
+            .and_then(|url| url.host().map(|host| host.to_string()))
+            .unwrap_or(url);
+        self.hosts.insert(host);
+        self
+    }
+
+    /// Sets [CfgEnv] of this instance
+    pub fn set_cfg_env(mut self, cfg_env: revm::primitives::CfgEnv) {
+        self.cfg_env = cfg_env;
+    }
+
+    /// Sets the [BlockEnv] of this instance
+    pub fn set_block_env(mut self, block_env: revm::primitives::BlockEnv) {
+        self.block_env = block_env;
     }
 }
 
