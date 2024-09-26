@@ -5,8 +5,7 @@ use parking_lot::RwLock;
 use revm::{
     primitives::{
         map::{AddressHashMap, HashMap},
-        Account, AccountInfo, AccountStatus, BlobExcessGasAndPrice, BlockEnv, CfgEnv,
-        HashMap as Map, KECCAK_EMPTY,
+        Account, AccountInfo, AccountStatus, BlobExcessGasAndPrice, BlockEnv, CfgEnv, KECCAK_EMPTY,
     },
     DatabaseCommit,
 };
@@ -20,7 +19,7 @@ use std::{
 };
 use url::Url;
 
-pub type StorageInfo = Map<U256, U256>;
+pub type StorageInfo = HashMap<U256, U256>;
 
 /// A shareable Block database
 #[derive(Clone, Debug)]
@@ -99,7 +98,7 @@ impl BlockchainDb {
     }
 
     /// Returns the map that holds all the block hashes
-    pub fn block_hashes(&self) -> &RwLock<Map<U256, B256>> {
+    pub fn block_hashes(&self) -> &RwLock<HashMap<U256, B256>> {
         &self.db.block_hashes
     }
 
@@ -303,7 +302,7 @@ pub struct MemDb {
     /// Storage related data
     pub storage: RwLock<AddressHashMap<StorageInfo>>,
     /// All retrieved block hashes
-    pub block_hashes: RwLock<Map<U256, B256>>,
+    pub block_hashes: RwLock<HashMap<U256, B256>>,
 }
 
 impl MemDb {
@@ -320,7 +319,7 @@ impl MemDb {
     }
 
     /// The implementation of [DatabaseCommit::commit()]
-    pub fn do_commit(&self, changes: Map<Address, Account>) {
+    pub fn do_commit(&self, changes: HashMap<Address, Account>) {
         let mut storage = self.storage.write();
         let mut accounts = self.accounts.write();
         for (add, mut acc) in changes {
@@ -372,7 +371,7 @@ impl Clone for MemDb {
 }
 
 impl DatabaseCommit for MemDb {
-    fn commit(&mut self, changes: Map<Address, Account>) {
+    fn commit(&mut self, changes: HashMap<Address, Account>) {
         self.do_commit(changes)
     }
 }

@@ -1,4 +1,5 @@
-//! Smart caching and deduplication of requests when using a forking provider
+//! Smart caching and deduplication of requests when using a forking provider.
+
 use crate::{
     cache::{BlockchainDb, FlushJsonBlockCacheDB, MemDb, StorageInfo},
     error::{DatabaseError, DatabaseResult},
@@ -17,11 +18,13 @@ use futures::{
 };
 use revm::{
     db::DatabaseRef,
-    primitives::{AccountInfo, Bytecode, HashMap as Map, KECCAK_EMPTY},
+    primitives::{
+        map::{hash_map::Entry, AddressHashMap, HashMap},
+        AccountInfo, Bytecode, KECCAK_EMPTY,
+    },
 };
-use rustc_hash::FxHashMap;
 use std::{
-    collections::{hash_map::Entry, HashMap, VecDeque},
+    collections::VecDeque,
     future::IntoFuture,
     marker::PhantomData,
     path::Path,
@@ -68,10 +71,9 @@ type FullBlockSender =
     OneshotSender<DatabaseResult<WithOtherFields<Block<WithOtherFields<Transaction>>>>>;
 type TransactionSender = OneshotSender<DatabaseResult<WithOtherFields<Transaction>>>;
 
-use alloy_primitives::map::AddressHashMap;
 type AddressData = AddressHashMap<AccountInfo>;
 type StorageData = AddressHashMap<StorageInfo>;
-type BlockHashData = Map<U256, B256>;
+type BlockHashData = HashMap<U256, B256>;
 
 /// Request variants that are executed by the provider
 enum ProviderRequest<Err> {
@@ -123,7 +125,7 @@ pub struct BackendHandler<T, P> {
     /// Listeners that wait for a `get_storage_at` response
     storage_requests: HashMap<(Address, U256), Vec<StorageSender>>,
     /// Listeners that wait for a `get_block` response
-    block_requests: FxHashMap<u64, Vec<BlockHashSender>>,
+    block_requests: HashMap<u64, Vec<BlockHashSender>>,
     /// Incoming commands.
     incoming: UnboundedReceiver<BackendRequest>,
     /// unprocessed queued requests
@@ -936,7 +938,7 @@ mod tests {
             code: None,
             code_hash: KECCAK_EMPTY,
         };
-        let mut account_data: AddressData = Map::default();
+        let mut account_data = AddressData::default();
         account_data.insert(address, new_acc.clone());
 
         backend.insert_or_update_address(account_data);
@@ -1000,8 +1002,8 @@ mod tests {
         // some rng contract from etherscan
         let address: Address = "63091244180ae240c87d1f528f5f269134cb07b3".parse().unwrap();
 
-        let mut storage_data: StorageData = Map::default();
-        let mut storage_info: StorageInfo = Map::default();
+        let mut storage_data = StorageData::default();
+        let mut storage_info = StorageInfo::default();
         storage_info.insert(U256::from(20), U256::from(10));
         storage_info.insert(U256::from(30), U256::from(15));
         storage_info.insert(U256::from(40), U256::from(20));
@@ -1063,7 +1065,7 @@ mod tests {
         // some rng contract from etherscan
         // let address: Address = "63091244180ae240c87d1f528f5f269134cb07b3".parse().unwrap();
 
-        let mut block_hash_data: BlockHashData = Map::default();
+        let mut block_hash_data = BlockHashData::default();
         block_hash_data.insert(U256::from(1), B256::from(U256::from(1)));
         block_hash_data.insert(U256::from(2), B256::from(U256::from(2)));
         block_hash_data.insert(U256::from(3), B256::from(U256::from(3)));
@@ -1124,8 +1126,8 @@ mod tests {
         // some rng contract from etherscan
         let address: Address = "63091244180ae240c87d1f528f5f269134cb07b3".parse().unwrap();
 
-        let mut storage_data: StorageData = Map::default();
-        let mut storage_info: StorageInfo = Map::default();
+        let mut storage_data = StorageData::default();
+        let mut storage_info = StorageInfo::default();
         storage_info.insert(U256::from(1), U256::from(10));
         storage_info.insert(U256::from(2), U256::from(15));
         storage_info.insert(U256::from(3), U256::from(20));
@@ -1144,7 +1146,7 @@ mod tests {
         // nullify the code
         new_acc.code = Some(Bytecode::new_raw(([10, 20, 30, 40]).into()));
 
-        let mut account_data: AddressData = Map::default();
+        let mut account_data = AddressData::default();
         account_data.insert(address, new_acc.clone());
 
         backend.insert_or_update_address(account_data);
@@ -1195,8 +1197,8 @@ mod tests {
 
         let json_db = BlockchainDb::new(meta, Some(cache_path));
 
-        let mut storage_data: StorageData = Map::default();
-        let mut storage_info: StorageInfo = Map::default();
+        let mut storage_data = StorageData::default();
+        let mut storage_info = StorageInfo::default();
         storage_info.insert(U256::from(1), U256::from(10));
         storage_info.insert(U256::from(2), U256::from(15));
         storage_info.insert(U256::from(3), U256::from(20));

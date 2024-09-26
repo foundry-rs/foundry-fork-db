@@ -25,7 +25,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-alloy-primitives = "0.8"
+alloy-primitives = { version = "0.8.5", features = ["map"] }
 alloy-provider = { version = "0.3", default-features = false }
 alloy-rpc-types = { version = "0.3", features = ["eth"] }
 alloy-serde = { version = "0.3", default-features = false }
@@ -36,8 +36,10 @@ futures = "0.3"
 
 parking_lot = "0.12"
 
-revm = { version = "14", default-features = false, features = ["std", "serde"] }
-rustc-hash = "2.0"
+revm = { version = "14.0.3", default-features = false, features = [
+    "std",
+    "serde",
+] }
 
 serde = "1.0"
 serde_json = "1.0"
