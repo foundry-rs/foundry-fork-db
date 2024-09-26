@@ -68,8 +68,9 @@ type FullBlockSender =
     OneshotSender<DatabaseResult<WithOtherFields<Block<WithOtherFields<Transaction>>>>>;
 type TransactionSender = OneshotSender<DatabaseResult<WithOtherFields<Transaction>>>;
 
-type AddressData = Map<Address, AccountInfo>;
-type StorageData = Map<Address, StorageInfo>;
+use alloy_primitives::map::AddressHashMap;
+type AddressData = AddressHashMap<AccountInfo>;
+type StorageData = AddressHashMap<StorageInfo>;
 type BlockHashData = Map<U256, B256>;
 
 /// Request variants that are executed by the provider

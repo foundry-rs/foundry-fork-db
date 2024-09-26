@@ -4,8 +4,8 @@ use alloy_provider::network::{HeaderResponse, TransactionResponse};
 use parking_lot::RwLock;
 use revm::{
     primitives::{
-        Account, AccountInfo, AccountStatus, BlobExcessGasAndPrice, BlockEnv, CfgEnv,
-        HashMap as Map, KECCAK_EMPTY,
+        map::AddressHashMap, Account, AccountInfo, AccountStatus, BlobExcessGasAndPrice, BlockEnv,
+        CfgEnv, HashMap as Map, KECCAK_EMPTY,
     },
     DatabaseCommit,
 };
@@ -88,12 +88,12 @@ impl BlockchainDb {
     }
 
     /// Returns the map that holds the account related info
-    pub fn accounts(&self) -> &RwLock<Map<Address, AccountInfo>> {
+    pub fn accounts(&self) -> &RwLock<AddressHashMap<AccountInfo>> {
         &self.db.accounts
     }
 
     /// Returns the map that holds the storage related info
-    pub fn storage(&self) -> &RwLock<Map<Address, StorageInfo>> {
+    pub fn storage(&self) -> &RwLock<AddressHashMap<StorageInfo>> {
         &self.db.storage
     }
 
@@ -298,9 +298,9 @@ impl<'de> Deserialize<'de> for BlockchainDbMeta {
 #[derive(Debug, Default)]
 pub struct MemDb {
     /// Account related data
-    pub accounts: RwLock<Map<Address, AccountInfo>>,
+    pub accounts: RwLock<AddressHashMap<AccountInfo>>,
     /// Storage related data
-    pub storage: RwLock<Map<Address, StorageInfo>>,
+    pub storage: RwLock<AddressHashMap<StorageInfo>>,
     /// All retrieved block hashes
     pub block_hashes: RwLock<Map<U256, B256>>,
 }
@@ -496,8 +496,8 @@ impl<'de> Deserialize<'de> for JsonBlockCacheData {
         #[derive(Deserialize)]
         struct Data {
             meta: BlockchainDbMeta,
-            accounts: HashMap<Address, AccountInfo>,
-            storage: HashMap<Address, HashMap<U256, U256>>,
+            accounts: AddressHashMap<AccountInfo>,
+            storage: AddressHashMap<HashMap<U256, U256>>,
             block_hashes: HashMap<U256, B256>,
         }
 
