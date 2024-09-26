@@ -25,7 +25,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-alloy-primitives = "0.8"
+alloy-primitives = "=0.8.2"
 alloy-provider = { version = "0.3", default-features = false }
 alloy-rpc-types = { version = "0.3", features = ["eth"] }
 alloy-serde = { version = "0.3", default-features = false }
