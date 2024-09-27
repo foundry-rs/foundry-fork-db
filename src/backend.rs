@@ -108,9 +108,12 @@ enum BackendRequest {
     UpdateBlockHash(BlockHashData),
 }
 
+/// Serves as a marker to identify whether the RPC provider supports `eth_getAccount`
 #[derive(PartialEq, Clone)]
 enum GetAccountMode {
+    /// The provider supports `eth_getAccount`
     EthGetAccount,
+    /// It doesn't support, and we have to fetch balance, nonce, and code concurrently
     AccountCodeNonce,
 }
 
