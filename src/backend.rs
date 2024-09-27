@@ -9,7 +9,7 @@ use alloy_provider::{network::AnyNetwork, Provider};
 use alloy_rpc_types::{Account, Block, BlockId, Transaction};
 use alloy_serde::WithOtherFields;
 use alloy_transport::Transport;
-use eyre::{Report, WrapErr};
+use eyre::WrapErr;
 use futures::{
     channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
     stream::Stream,
