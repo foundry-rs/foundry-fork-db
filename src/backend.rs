@@ -260,18 +260,22 @@ where
     fn get_account_req(&self, address: Address) -> ProviderRequest<eyre::Report> {
         trace!(target: "backendhandler", "preparing account request, address={:?}", address);
 
-        if self.get_account_mode.get().is_none() {
-            let provider = self.provider.clone();
-            let block_id = self.block_id.unwrap_or_default();
-            let get_acc_mode = self.get_account_mode.clone();
+        let provider = self.provider.clone();
+        let block_id = self.block_id.unwrap_or_default();
+        let get_acc_mode = self.get_account_mode.clone();
+        if get_acc_mode.get().is_none() {
             let fut = Box::pin(async move {
                 let res = match provider.get_account(address).block_id(block_id).await {
-                    Ok(Account { balance, nonce, .. }) => {
-                        let code = provider
-                            .get_code_at(address)
-                            .block_id(block_id)
-                            .await
-                            .unwrap_or_default();
+                    Ok(Account { balance, nonce, code_hash, .. }) => {
+                        let code = if code_hash != KECCAK_EMPTY {
+                            provider
+                                .get_code_at(address)
+                                .block_id(block_id)
+                                .await
+                                .unwrap_or_default()
+                        } else {
+                            Bytes::default()
+                        };
 
                         let _ = get_acc_mode.set(GetAccountMode::EthGetAccount);
                         Ok((balance, nonce, code))
@@ -287,14 +291,32 @@ where
             return ProviderRequest::Account(fut);
         }
 
-        let provider = self.provider.clone();
-        let block_id = self.block_id.unwrap_or_default();
         let fut = Box::pin(async move {
-            let balance = provider.get_balance(address).block_id(block_id).into_future();
-            let nonce = provider.get_transaction_count(address).block_id(block_id).into_future();
-            let code = provider.get_code_at(address).block_id(block_id).into_future();
-            let resp = tokio::try_join!(balance, nonce, code).map_err(Into::into);
-            (resp, address)
+            if let Some(GetAccountMode::EthGetAccount) = get_acc_mode.get() {
+                let res = match provider.get_account(address).block_id(block_id).await {
+                    Ok(Account { balance, nonce, code_hash, .. }) => {
+                        let code = if code_hash != KECCAK_EMPTY {
+                            provider
+                                .get_code_at(address)
+                                .block_id(block_id)
+                                .await
+                                .unwrap_or_default()
+                        } else {
+                            Bytes::default()
+                        };
+                        Ok((balance, nonce, code))
+                    }
+                    Err(err) => Err(err.into()),
+                };
+                (res, address)
+            } else {
+                let balance = provider.get_balance(address).block_id(block_id).into_future();
+                let nonce =
+                    provider.get_transaction_count(address).block_id(block_id).into_future();
+                let code = provider.get_code_at(address).block_id(block_id).into_future();
+                let resp = tokio::try_join!(balance, nonce, code).map_err(Into::into);
+                (resp, address)
+            }
         });
         ProviderRequest::Account(fut)
     }
