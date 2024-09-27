@@ -6,10 +6,10 @@ use crate::{
 };
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_provider::{network::AnyNetwork, Provider};
-use alloy_rpc_types::{Block, BlockId, Transaction};
+use alloy_rpc_types::{Account, Block, BlockId, Transaction};
 use alloy_serde::WithOtherFields;
 use alloy_transport::Transport;
-use eyre::WrapErr;
+use eyre::{Report, WrapErr};
 use futures::{
     channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
     stream::Stream,
@@ -31,7 +31,7 @@ use std::{
     pin::Pin,
     sync::{
         mpsc::{channel as oneshot_channel, Sender as OneshotSender},
-        Arc,
+        Arc, OnceLock,
     },
 };
 
@@ -108,6 +108,12 @@ enum BackendRequest {
     UpdateBlockHash(BlockHashData),
 }
 
+#[derive(PartialEq, Clone)]
+enum GetAccountMode {
+    EthGetAccount,
+    AccountCodeNonce,
+}
+
 /// Handles an internal provider and listens for requests.
 ///
 /// This handler will remain active as long as it is reachable (request channel still open) and
@@ -133,6 +139,8 @@ pub struct BackendHandler<T, P> {
     /// The block to fetch data from.
     // This is an `Option` so that we can have less code churn in the functions below
     block_id: Option<BlockId>,
+    /// Marker identifying whether the RPC provider supports `eth_getAccount`
+    get_account_mode: OnceLock<GetAccountMode>,
 }
 
 impl<T, P> BackendHandler<T, P>
@@ -157,6 +165,7 @@ where
             incoming: rx,
             block_id,
             transport: PhantomData,
+            get_account_mode: OnceLock::new(),
         }
     }
 
@@ -250,6 +259,34 @@ where
     /// returns the future that fetches the account data
     fn get_account_req(&self, address: Address) -> ProviderRequest<eyre::Report> {
         trace!(target: "backendhandler", "preparing account request, address={:?}", address);
+
+        if self.get_account_mode.get().is_none() {
+            let provider = self.provider.clone();
+            let block_id = self.block_id.unwrap_or_default();
+            let get_acc_mode = self.get_account_mode.clone();
+            let fut = Box::pin(async move {
+                let res = match provider.get_account(address).block_id(block_id).await {
+                    Ok(Account { balance, nonce, .. }) => {
+                        let code = provider
+                            .get_code_at(address)
+                            .block_id(block_id)
+                            .await
+                            .unwrap_or_default();
+
+                        let _ = get_acc_mode.set(GetAccountMode::EthGetAccount);
+                        Ok((balance, nonce, code))
+                    }
+                    Err(err) => {
+                        let _ = get_acc_mode.set(GetAccountMode::AccountCodeNonce);
+                        Err(err.into())
+                    }
+                };
+
+                (res, address)
+            });
+            return ProviderRequest::Account(fut);
+        }
+
         let provider = self.provider.clone();
         let block_id = self.block_id.unwrap_or_default();
         let fut = Box::pin(async move {
