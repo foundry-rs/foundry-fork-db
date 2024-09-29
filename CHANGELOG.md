@@ -5,12 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2](https://github.com/foundry-rs/foundry-fork-db
+/releases/tag/v0.3.2) - 2024-09-29
+
+### Features
+
+- BlockchainDbMeta builder ([#22](https://github.com/foundry-rs/foundry-fork-db/issues/22))
+
+### Miscellaneous Tasks
+
+- Use more alloy_primitives::map
+
 ## [0.3.1](https://github.com/foundry-rs/foundry-fork-db
 /releases/tag/v0.3.1) - 2024-09-21
 
 ### Dependencies
 
 - [deps] Disable default features for revm ([#20](https://github.com/foundry-rs/foundry-fork-db/issues/20))
+
+### Miscellaneous Tasks
+
+- Release 0.3.1
 
 ### Other
 
