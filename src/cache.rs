@@ -157,7 +157,7 @@ impl BlockchainDbMeta {
             gas_limit: U256::from(block.header.gas_limit()),
             prevrandao: block.header.mix_hash(),
             blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(
-                block.header.excess_blob_gas.map(|gas| gas as u64).unwrap_or_default(),
+                block.header.excess_blob_gas.unwrap_or_default(),
             )),
         };
 
