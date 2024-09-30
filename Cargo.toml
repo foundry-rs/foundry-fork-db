@@ -26,10 +26,10 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 alloy-primitives = { version = "0.8.5", features = ["map"] }
-alloy-provider = { version = "0.3", default-features = false }
-alloy-rpc-types = { version = "0.3", features = ["eth"] }
-alloy-serde = { version = "0.3", default-features = false }
-alloy-transport = { version = "0.3", default-features = false }
+alloy-provider = { version = "0.4", default-features = false }
+alloy-rpc-types = { version = "0.4", features = ["eth"] }
+alloy-serde = { version = "0.4", default-features = false }
+alloy-transport = { version = "0.4", default-features = false }
 
 eyre = "0.6"
 futures = "0.3"
@@ -51,5 +51,5 @@ tracing = "0.1"
 url = "2"
 
 [dev-dependencies]
-alloy-rpc-client = "0.3"
-alloy-transport-http = "0.3"
+alloy-rpc-client = "0.4"
+alloy-transport-http = "0.4"
