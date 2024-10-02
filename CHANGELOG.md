@@ -5,31 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0](https://github.com/foundry-rs/foundry-fork-db
+## [0.4.0](https://github.com/foundry-rs/alloy-forking
+
 /releases/tag/v0.4.0) - 2024-09-30
 
 ### Dependencies
 
-- Bump alloy 0.4 ([#24](https://github.com/foundry-rs/foundry-fork-db/issues/24))
+- Bump alloy 0.4 ([#24](https://github.com/foundry-rs/alloy-forking/issues/24))
 
-## [0.3.2](https://github.com/foundry-rs/foundry-fork-db
+## [0.3.2](https://github.com/foundry-rs/alloy-forking
+
 /releases/tag/v0.3.2) - 2024-09-29
 
 ### Features
 
-- BlockchainDbMeta builder ([#22](https://github.com/foundry-rs/foundry-fork-db/issues/22))
+- BlockchainDbMeta builder ([#22](https://github.com/foundry-rs/alloy-forking/issues/22))
 
 ### Miscellaneous Tasks
 
 - Release 0.3.2
 - Use more alloy_primitives::map
 
-## [0.3.1](https://github.com/foundry-rs/foundry-fork-db
+## [0.3.1](https://github.com/foundry-rs/alloy-forking
+
 /releases/tag/v0.3.1) - 2024-09-21
 
 ### Dependencies
 
-- [deps] Disable default features for revm ([#20](https://github.com/foundry-rs/foundry-fork-db/issues/20))
+- [deps] Disable default features for revm ([#20](https://github.com/foundry-rs/alloy-forking/issues/20))
 
 ### Miscellaneous Tasks
 
@@ -39,7 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Don't deploy docs
 
-## [0.3.0](https://github.com/foundry-rs/foundry-fork-db
+## [0.3.0](https://github.com/foundry-rs/alloy-forking
+
 /releases/tag/v0.3.0) - 2024-08-29
 
 ### Bug Fixes
@@ -48,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 
-- Merge pull request [#19](https://github.com/foundry-rs/foundry-fork-db/issues/19) from foundry-rs/matt/bump-alloy03
+- Merge pull request [#19](https://github.com/foundry-rs/alloy-forking/issues/19) from foundry-rs/matt/bump-alloy03
 - Bump alloy
 
 ### Miscellaneous Tasks
@@ -58,11 +62,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Other
 
 - Update
-- Merge pull request [#18](https://github.com/foundry-rs/foundry-fork-db/issues/18) from nkysg/unbound_channel
+- Merge pull request [#18](https://github.com/foundry-rs/alloy-forking/issues/18) from nkysg/unbound_channel
 - Rm clone
 - Replace bounded channel with unbounded channel
 
-## [0.2.1](https://github.com/foundry-rs/foundry-fork-db
+## [0.2.1](https://github.com/foundry-rs/alloy-forking
+
 /releases/tag/v0.2.1) - 2024-08-08
 
 ### Bug Fixes
@@ -72,7 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies
 
-- Merge pull request [#17](https://github.com/foundry-rs/foundry-fork-db/issues/17) from foundry-rs/matt/bump-revm13
+- Merge pull request [#17](https://github.com/foundry-rs/alloy-forking/issues/17) from foundry-rs/matt/bump-revm13
 - Bump revm 13
 - Undo bump version
 - Bump version of crate
@@ -89,14 +94,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Other
 
-- Merge pull request [#16](https://github.com/foundry-rs/foundry-fork-db/issues/16) from m1stoyanov/patch-1
+- Merge pull request [#16](https://github.com/foundry-rs/alloy-forking/issues/16) from m1stoyanov/patch-1
 - Remove the unnecessary result from the helper functions
 - Provide helper methods for MemDb data
-- Merge pull request [#13](https://github.com/foundry-rs/foundry-fork-db/issues/13) from nkysg/sharedbackend_behaviour
+- Merge pull request [#13](https://github.com/foundry-rs/alloy-forking/issues/13) from nkysg/sharedbackend_behaviour
 - Update process logic
 - Add BlockingMod::Block process
--  add configure for SharedBackend block_in_place or not
-- Merge pull request [#10](https://github.com/foundry-rs/foundry-fork-db/issues/10) from Ethanol48/update_state
+- add configure for SharedBackend block_in_place or not
+- Merge pull request [#10](https://github.com/foundry-rs/alloy-forking/issues/10) from Ethanol48/update_state
 - Eliminated tmp ETH_RPC
 - Added tmp file for testing
 - Eliminate reduntant code
@@ -107,24 +112,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Typo
 - Update address in db
 - Update revm
-- Merge pull request [#12](https://github.com/foundry-rs/foundry-fork-db/issues/12) from Ethanol48/flush_to_file
+- Merge pull request [#12](https://github.com/foundry-rs/alloy-forking/issues/12) from Ethanol48/flush_to_file
 - Change to &Path
 - Eliminate reduntant code
-- Merge branch 'main' of https://github.com/Ethanol48/foundry-fork-db into flush_to_file
+- Merge branch 'main' of https://github.com/Ethanol48/alloy-forking into flush_to_file
 
 ### Refactor
 
 - Refactor and storage update
 - Refactoring
 
-## [0.2.0](https://github.com/foundry-rs/foundry-fork-db
+## [0.2.0](https://github.com/foundry-rs/alloy-forking
+
 /releases/tag/v0.2.0) - 2024-07-17
 
 ### Dependencies
 
-- Merge pull request [#8](https://github.com/foundry-rs/foundry-fork-db/issues/8) from foundry-rs/klkvr/bump-revm
+- Merge pull request [#8](https://github.com/foundry-rs/alloy-forking/issues/8) from foundry-rs/klkvr/bump-revm
 - Bump revm
-- Merge pull request [#7](https://github.com/foundry-rs/foundry-fork-db/issues/7) from foundry-rs/matt/bump-revm-alloy
+- Merge pull request [#7](https://github.com/foundry-rs/alloy-forking/issues/7) from foundry-rs/matt/bump-revm-alloy
 - Bump alloy and revm
 
 ### Miscellaneous Tasks
@@ -137,14 +143,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add documentation
 - Add flush to arbitrary file
 
-## [0.1.1](https://github.com/foundry-rs/foundry-fork-db
+## [0.1.1](https://github.com/foundry-rs/alloy-forking
+
 /releases/tag/v0.1.1) - 2024-07-15
 
 ### Dependencies
 
-- Merge pull request [#5](https://github.com/foundry-rs/foundry-fork-db/issues/5) from foundry-rs/matt/bump-msrv
+- Merge pull request [#5](https://github.com/foundry-rs/alloy-forking/issues/5) from foundry-rs/matt/bump-msrv
 - Bump msrv 79
-- Merge pull request [#4](https://github.com/foundry-rs/foundry-fork-db/issues/4) from m1stoyanov/main
+- Merge pull request [#4](https://github.com/foundry-rs/alloy-forking/issues/4) from m1stoyanov/main
 - Bump alloy [provider, rpc-types, serde, transport, rpc-client, transport-http] to 0.1.4, alloy-primitives to 0.7.7 and revm to 11.0.0
 
 ### Miscellaneous Tasks
@@ -156,7 +163,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove redundant check
 - Update Cargo.toml according to the reviews
 
-## [0.1.0](https://github.com/foundry-rs/foundry-fork-db
+## [0.1.0](https://github.com/foundry-rs/alloy-forking
+
 /releases/tag/v0.1.0) - 2024-07-02
 
 ### Bug Fixes
@@ -175,8 +183,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Other
 
-- Update naming ([#2](https://github.com/foundry-rs/foundry-fork-db/issues/2))
-- Merge pull request [#1](https://github.com/foundry-rs/foundry-fork-db/issues/1) from klkvr/klkvr/init
+- Update naming ([#2](https://github.com/foundry-rs/alloy-forking/issues/2))
+- Merge pull request [#1](https://github.com/foundry-rs/alloy-forking/issues/1) from klkvr/klkvr/init
 - DatabaseError -> BackendError
 - Initial commit
 - Update readme
