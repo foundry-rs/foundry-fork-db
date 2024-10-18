@@ -23,6 +23,7 @@ allow = [
     "ISC",
     "Unicode-DFS-2016",
     "Unlicense",
+    "Zlib",
 ]
 
 exceptions = [
