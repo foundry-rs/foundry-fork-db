@@ -5,12 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0](https://github.com/foundry-rs/foundry-fork-db
+/releases/tag/v0.5.0) - 2024-10-18
+
+### Dependencies
+
+- Bump alloy 0.5 ([#26](https://github.com/foundry-rs/foundry-fork-db/issues/26))
+
 ## [0.4.0](https://github.com/foundry-rs/foundry-fork-db
 /releases/tag/v0.4.0) - 2024-09-30
 
 ### Dependencies
 
 - Bump alloy 0.4 ([#24](https://github.com/foundry-rs/foundry-fork-db/issues/24))
+
+### Miscellaneous Tasks
+
+- Release 0.4.0
 
 ## [0.3.2](https://github.com/foundry-rs/foundry-fork-db
 /releases/tag/v0.3.2) - 2024-09-29
