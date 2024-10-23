@@ -526,13 +526,18 @@ where
     }
 }
 
-/// mode for the `SharedBackend` to block or not block when interacting with the `BackendHandler`
+/// Mode for the `SharedBackend` how to block in the non-async [`DatabaseRef`] when interacting with
+/// [`BackendHandler`].
 #[derive(Default, Clone, Debug, PartialEq)]
 pub enum BlockingMode {
-    /// the mode use `tokio::task::block_in_place()` to block in place
+    /// This mode use `tokio::task::block_in_place()` to block in place.
+    ///
+    /// This should be used when blocking on the call site is disallowed.
     #[default]
     BlockInPlace,
-    /// the mode blocks the current task
+    /// The mode blocks the current task
+    ///
+    /// This can be used if blocking on the call site is allowed, e.g. on a tokio blocking task.
     Block,
 }
 
