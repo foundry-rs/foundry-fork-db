@@ -148,7 +148,10 @@ impl BlockchainDbMeta {
     }
 
     /// Sets the [BlockEnv] of this instance using the provided [alloy_rpc_types::Block]
-    pub fn with_block<T: TransactionResponse>(mut self, block: &alloy_rpc_types::Block<T>) -> Self {
+    pub fn with_block<T: TransactionResponse, H: BlockHeader>(
+        mut self,
+        block: &alloy_rpc_types::Block<T, H>,
+    ) -> Self {
         self.block_env = BlockEnv {
             number: U256::from(block.header.number()),
             coinbase: block.header.beneficiary(),
@@ -158,7 +161,7 @@ impl BlockchainDbMeta {
             gas_limit: U256::from(block.header.gas_limit()),
             prevrandao: block.header.mix_hash(),
             blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(
-                block.header.excess_blob_gas.unwrap_or_default(),
+                block.header.excess_blob_gas().unwrap_or_default(),
             )),
         };
 
