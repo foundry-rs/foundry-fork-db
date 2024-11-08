@@ -24,6 +24,7 @@ allow = [
     "Unicode-DFS-2016",
     "Unlicense",
     "Zlib",
+    "Unicode-3.0",
 ]
 
 exceptions = [

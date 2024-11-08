@@ -4,13 +4,12 @@ use crate::{
     cache::{BlockchainDb, FlushJsonBlockCacheDB, MemDb, StorageInfo},
     error::{DatabaseError, DatabaseResult},
 };
-use alloy_consensus::AnyHeader;
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_provider::{
     network::{AnyNetwork, AnyRpcBlock, AnyRpcTransaction, AnyTxEnvelope},
     Provider,
 };
-use alloy_rpc_types::{Block, BlockId, Header, Transaction};
+use alloy_rpc_types::{BlockId, Transaction};
 use alloy_serde::WithOtherFields;
 use alloy_transport::Transport;
 use eyre::WrapErr;
@@ -673,12 +672,7 @@ impl SharedBackend {
     }
 
     /// Returns the full block for the given block identifier
-    pub fn get_full_block(
-        &self,
-        block: impl Into<BlockId>,
-    ) -> DatabaseResult<
-        WithOtherFields<Block<WithOtherFields<Transaction<AnyTxEnvelope>>, Header<AnyHeader>>>,
-    > {
+    pub fn get_full_block(&self, block: impl Into<BlockId>) -> DatabaseResult<AnyRpcBlock> {
         self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::FullBlock(block.into(), sender);
