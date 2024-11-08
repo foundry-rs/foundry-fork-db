@@ -4,9 +4,13 @@ use crate::{
     cache::{BlockchainDb, FlushJsonBlockCacheDB, MemDb, StorageInfo},
     error::{DatabaseError, DatabaseResult},
 };
+use alloy_consensus::AnyHeader;
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
-use alloy_provider::{network::AnyNetwork, Provider};
-use alloy_rpc_types::{Block, BlockId, Transaction};
+use alloy_provider::{
+    network::{AnyNetwork, AnyRpcBlock, AnyRpcTransaction, AnyTxEnvelope},
+    Provider,
+};
+use alloy_rpc_types::{Block, BlockId, Header, Transaction};
 use alloy_serde::WithOtherFields;
 use alloy_transport::Transport;
 use eyre::WrapErr;
@@ -47,29 +51,16 @@ type AccountFuture<Err> =
 type StorageFuture<Err> = Pin<Box<dyn Future<Output = (Result<U256, Err>, Address, U256)> + Send>>;
 type BlockHashFuture<Err> = Pin<Box<dyn Future<Output = (Result<B256, Err>, u64)> + Send>>;
 type FullBlockFuture<Err> = Pin<
-    Box<
-        dyn Future<
-                Output = (
-                    FullBlockSender,
-                    Result<Option<WithOtherFields<Block<WithOtherFields<Transaction>>>>, Err>,
-                    BlockId,
-                ),
-            > + Send,
-    >,
+    Box<dyn Future<Output = (FullBlockSender, Result<Option<AnyRpcBlock>, Err>, BlockId)> + Send>,
 >;
-type TransactionFuture<Err> = Pin<
-    Box<
-        dyn Future<Output = (TransactionSender, Result<WithOtherFields<Transaction>, Err>, B256)>
-            + Send,
-    >,
->;
+type TransactionFuture<Err> =
+    Pin<Box<dyn Future<Output = (TransactionSender, Result<AnyRpcTransaction, Err>, B256)> + Send>>;
 
 type AccountInfoSender = OneshotSender<DatabaseResult<AccountInfo>>;
 type StorageSender = OneshotSender<DatabaseResult<U256>>;
 type BlockHashSender = OneshotSender<DatabaseResult<B256>>;
-type FullBlockSender =
-    OneshotSender<DatabaseResult<WithOtherFields<Block<WithOtherFields<Transaction>>>>>;
-type TransactionSender = OneshotSender<DatabaseResult<WithOtherFields<Transaction>>>;
+type FullBlockSender = OneshotSender<DatabaseResult<AnyRpcBlock>>;
+type TransactionSender = OneshotSender<DatabaseResult<AnyRpcTransaction>>;
 
 type AddressData = AddressHashMap<AccountInfo>;
 type StorageData = AddressHashMap<StorageInfo>;
@@ -318,7 +309,10 @@ where
                 let provider = self.provider.clone();
                 let fut = Box::pin(async move {
                     let block = provider
-                        .get_block_by_number(number.into(), false)
+                        .get_block_by_number(
+                            number.into(),
+                            alloy_rpc_types::BlockTransactionsKind::Hashes,
+                        )
                         .await
                         .wrap_err("failed to get block");
 
@@ -682,7 +676,9 @@ impl SharedBackend {
     pub fn get_full_block(
         &self,
         block: impl Into<BlockId>,
-    ) -> DatabaseResult<WithOtherFields<Block<WithOtherFields<Transaction>>>> {
+    ) -> DatabaseResult<
+        WithOtherFields<Block<WithOtherFields<Transaction<AnyTxEnvelope>>, Header<AnyHeader>>>,
+    > {
         self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::FullBlock(block.into(), sender);
@@ -692,7 +688,10 @@ impl SharedBackend {
     }
 
     /// Returns the transaction for the hash
-    pub fn get_transaction(&self, tx: B256) -> DatabaseResult<WithOtherFields<Transaction>> {
+    pub fn get_transaction(
+        &self,
+        tx: B256,
+    ) -> DatabaseResult<WithOtherFields<Transaction<AnyTxEnvelope>>> {
         self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::Transaction(tx, sender);

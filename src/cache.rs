@@ -1,6 +1,7 @@
 //! Cache related abstraction
+use alloy_consensus::BlockHeader;
 use alloy_primitives::{Address, B256, U256};
-use alloy_provider::network::{HeaderResponse, TransactionResponse};
+use alloy_provider::network::TransactionResponse;
 use parking_lot::RwLock;
 use revm::{
     primitives::{
@@ -150,7 +151,7 @@ impl BlockchainDbMeta {
     pub fn with_block<T: TransactionResponse>(mut self, block: &alloy_rpc_types::Block<T>) -> Self {
         self.block_env = BlockEnv {
             number: U256::from(block.header.number()),
-            coinbase: block.header.coinbase(),
+            coinbase: block.header.beneficiary(),
             timestamp: U256::from(block.header.timestamp()),
             difficulty: U256::from(block.header.difficulty()),
             basefee: block.header.base_fee_per_gas().map(U256::from).unwrap_or_default(),
