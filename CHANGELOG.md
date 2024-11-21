@@ -5,14 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.7.1](https://github.com/foundry-rs/foundry-fork-db
+## [0.7.1](https://github.com/foundry-rs/foundry-fork-db)
 /releases/tag/v0.7.1) - 2024-11-09
 
 ### Bug Fixes
 
 - Accept generic header in meta builder ([#30](https://github.com/foundry-rs/foundry-fork-db/issues/30))
 
-## [0.7.0](https://github.com/foundry-rs/foundry-fork-db
+## [0.7.0](https://github.com/foundry-rs/foundry-fork-db)
 /releases/tag/v0.7.0) - 2024-11-08
 
 ### Dependencies
@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Release 0.7.0
 
-## [0.6.0](https://github.com/foundry-rs/foundry-fork-db
+## [0.6.0](https://github.com/foundry-rs/foundry-fork-db)
 /releases/tag/v0.6.0) - 2024-10-23
 
 ### Dependencies
@@ -38,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Release 0.6.0
 
-## [0.5.0](https://github.com/foundry-rs/foundry-fork-db
+## [0.5.0](https://github.com/foundry-rs/foundry-fork-db)
 /releases/tag/v0.5.0) - 2024-10-18
 
 ### Dependencies
@@ -49,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Release 0.5.0
 
-## [0.4.0](https://github.com/foundry-rs/foundry-fork-db
+## [0.4.0](https://github.com/foundry-rs/foundry-fork-db)
 /releases/tag/v0.4.0) - 2024-09-30
 
 ### Dependencies
@@ -60,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Release 0.4.0
 
-## [0.3.2](https://github.com/foundry-rs/foundry-fork-db
+## [0.3.2](https://github.com/foundry-rs/foundry-fork-db)
 /releases/tag/v0.3.2) - 2024-09-29
 
 ### Features
@@ -72,7 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release 0.3.2
 - Use more alloy_primitives::map
 
-## [0.3.1](https://github.com/foundry-rs/foundry-fork-db
+## [0.3.1](https://github.com/foundry-rs/foundry-fork-db)
 /releases/tag/v0.3.1) - 2024-09-21
 
 ### Dependencies
@@ -87,7 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Don't deploy docs
 
-## [0.3.0](https://github.com/foundry-rs/foundry-fork-db
+## [0.3.0](https://github.com/foundry-rs/foundry-fork-db)
 /releases/tag/v0.3.0) - 2024-08-29
 
 ### Bug Fixes
@@ -110,7 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rm clone
 - Replace bounded channel with unbounded channel
 
-## [0.2.1](https://github.com/foundry-rs/foundry-fork-db
+## [0.2.1](https://github.com/foundry-rs/foundry-fork-db)
 /releases/tag/v0.2.1) - 2024-08-08
 
 ### Bug Fixes
@@ -147,7 +147,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Merge pull request [#10](https://github.com/foundry-rs/foundry-fork-db/issues/10) from Ethanol48/update_state
 - Eliminated tmp ETH_RPC
 - Added tmp file for testing
-- Eliminate reduntant code
+- Eliminate redundant code
 - Add tests to verify if the data was properly updated
 - Added db to test to verify data
 - Add minor changes
@@ -165,7 +165,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor and storage update
 - Refactoring
 
-## [0.2.0](https://github.com/foundry-rs/foundry-fork-db
+## [0.2.0](https://github.com/foundry-rs/foundry-fork-db)
 /releases/tag/v0.2.0) - 2024-07-17
 
 ### Dependencies
@@ -185,7 +185,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add documentation
 - Add flush to arbitrary file
 
-## [0.1.1](https://github.com/foundry-rs/foundry-fork-db
+## [0.1.1](https://github.com/foundry-rs/foundry-fork-db)
 /releases/tag/v0.1.1) - 2024-07-15
 
 ### Dependencies
@@ -204,7 +204,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove redundant check
 - Update Cargo.toml according to the reviews
 
-## [0.1.0](https://github.com/foundry-rs/foundry-fork-db
+## [0.1.0](https://github.com/foundry-rs/foundry-fork-db)
 /releases/tag/v0.1.0) - 2024-07-02
 
 ### Bug Fixes
