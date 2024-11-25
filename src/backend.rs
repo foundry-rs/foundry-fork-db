@@ -911,7 +911,9 @@ mod tests {
     use alloy_provider::{ProviderBuilder, RootProvider};
     use alloy_rpc_client::ClientBuilder;
     use alloy_transport_http::{Client, Http};
+    use serde::Deserialize;
     use std::{collections::BTreeSet, fs, path::PathBuf};
+    use tiny_http::{Response, Server};
 
     pub fn get_http_provider(endpoint: &str) -> RootProvider<Http<Client>, AnyNetwork> {
         ProviderBuilder::new()
@@ -1309,9 +1311,35 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn shared_backend_any_request() {
-        let Some(endpoint) = ENDPOINT else { return };
+        let expected_response_bytes: Bytes = vec![0xff, 0xee].into();
+        let server = Server::http("0.0.0.0:0").expect("failed starting in-memory http server");
+        let endpoint = format!("http://{}", server.server_addr().to_string());
 
-        let provider = get_http_provider(endpoint);
+        // Spin an in-memory server that responds to "foo_callCustomMethod" rpc call.
+        let expected_bytes_innner = expected_response_bytes.clone();
+        let server_handle = std::thread::spawn(move || {
+            #[derive(Debug, Deserialize)]
+            struct Request {
+                method: String,
+            }
+            let mut request = server.recv().unwrap();
+            let rpc_request: Request =
+                serde_json::from_reader(request.as_reader()).expect("failed parsing request");
+
+            match rpc_request.method.as_str() {
+                "foo_callCustomMethod" => request
+                    .respond(Response::from_string(format!(
+                        r#"{{"result": "{}"}}"#,
+                        alloy_primitives::hex::encode_prefixed(expected_bytes_innner),
+                    )))
+                    .unwrap(),
+                _ => request
+                    .respond(Response::from_string(r#"{"error": "invalid request"}"#))
+                    .unwrap(),
+            };
+        });
+
+        let provider = get_http_provider(&endpoint);
         let meta = BlockchainDbMeta {
             cfg_env: Default::default(),
             block_env: Default::default(),
@@ -1322,15 +1350,16 @@ mod tests {
         let provider_inner = provider.clone();
         let mut backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
 
-        let handle = std::thread::spawn(move || {
-            let address: Address = "0x5B56438000bAc5ed2c6E0c1EcFF4354aBfFaf889".parse().unwrap();
-            backend.do_any_req(async move {
-                let bytecode: alloy_primitives::Bytes = provider_inner.get_code_at(address).await?;
-                Ok(Some(bytecode))
+        let actual_response_bytes = backend
+            .do_any_req(async move {
+                let bytes: alloy_primitives::Bytes =
+                    provider_inner.raw_request("foo_callCustomMethod".into(), vec!["0001"]).await?;
+                Ok(bytes)
             })
-        });
+            .expect("failed performing any request");
 
-        let bytecode = handle.join().unwrap().unwrap();
-        assert!(bytecode.is_some(), "Expected bytecode, but got None");
+        assert_eq!(actual_response_bytes, expected_response_bytes);
+
+        server_handle.join().unwrap();
     }
 }
