@@ -77,14 +77,22 @@ impl<T, Err> fmt::Debug for AnyRequestFuture<T, Err> {
     }
 }
 
-trait WrappedAnyRequest: Unpin + Send + std::fmt::Debug {
+trait WrappedAnyRequest: Unpin + Send + fmt::Debug {
     fn poll_inner(&mut self, cx: &mut Context<'_>) -> Poll<()>;
 }
 
+/// @dev Implements `WrappedAnyRequest` for `AnyRequestFuture`.
+///
+/// - `poll_inner` is similar to `Future` polling but intentionally consumes the Future<Output=T>
+///   and return Future<Output=()>
+/// - This design avoids storing `Future<Output = T>` directly, as its type may not be known at
+///   compile time.
+/// - Instead, the result (`Result<T, Err>`) is sent via the `sender` channel, which enforces type
+///   safety.
 impl<T, Err> WrappedAnyRequest for AnyRequestFuture<T, Err>
 where
-    T: std::fmt::Debug + Send + 'static,
-    Err: std::fmt::Debug + Send + 'static,
+    T: fmt::Debug + Send + 'static,
+    Err: fmt::Debug + Send + 'static,
 {
     fn poll_inner(&mut self, cx: &mut Context<'_>) -> Poll<()> {
         match self.future.poll_unpin(cx) {
@@ -801,7 +809,7 @@ impl SharedBackend {
     }
 
     /// Returns any arbitrary request on the provider
-    pub fn do_any_req<T, F>(&mut self, fut: F) -> DatabaseResult<T>
+    pub fn do_any_request<T, F>(&mut self, fut: F) -> DatabaseResult<T>
     where
         F: Future<Output = Result<T, eyre::Report>> + Send + 'static,
         T: fmt::Debug + Send + 'static,
@@ -1313,7 +1321,7 @@ mod tests {
     async fn shared_backend_any_request() {
         let expected_response_bytes: Bytes = vec![0xff, 0xee].into();
         let server = Server::http("0.0.0.0:0").expect("failed starting in-memory http server");
-        let endpoint = format!("http://{}", server.server_addr().to_string());
+        let endpoint = format!("http://{}", server.server_addr());
 
         // Spin an in-memory server that responds to "foo_callCustomMethod" rpc call.
         let expected_bytes_innner = expected_response_bytes.clone();
@@ -1351,7 +1359,7 @@ mod tests {
         let mut backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
 
         let actual_response_bytes = backend
-            .do_any_req(async move {
+            .do_any_request(async move {
                 let bytes: alloy_primitives::Bytes =
                     provider_inner.raw_request("foo_callCustomMethod".into(), vec!["0001"]).await?;
                 Ok(bytes)
