@@ -28,6 +28,7 @@ use revm::{
 };
 use std::{
     collections::VecDeque,
+    fmt,
     future::IntoFuture,
     marker::PhantomData,
     path::Path,
@@ -65,6 +66,37 @@ type AddressData = AddressHashMap<AccountInfo>;
 type StorageData = AddressHashMap<StorageInfo>;
 type BlockHashData = HashMap<U256, B256>;
 
+struct AnyRequestFuture<T, Err> {
+    sender: OneshotSender<Result<T, Err>>,
+    future: Pin<Box<dyn Future<Output = Result<T, Err>> + Send>>,
+}
+
+impl<T, Err> fmt::Debug for AnyRequestFuture<T, Err> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("AnyRequestFuture").field(&self.sender).finish()
+    }
+}
+
+trait WrappedAnyRequest: Unpin + Send + std::fmt::Debug {
+    fn poll_inner(&mut self, cx: &mut Context<'_>) -> Poll<()>;
+}
+
+impl<T, Err> WrappedAnyRequest for AnyRequestFuture<T, Err>
+where
+    T: std::fmt::Debug + Send + 'static,
+    Err: std::fmt::Debug + Send + 'static,
+{
+    fn poll_inner(&mut self, cx: &mut Context<'_>) -> Poll<()> {
+        match self.future.poll_unpin(cx) {
+            Poll::Ready(result) => {
+                let _ = self.sender.send(result);
+                Poll::Ready(())
+            }
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
 /// Request variants that are executed by the provider
 enum ProviderRequest<Err> {
     Account(AccountFuture<Err>),
@@ -72,6 +104,7 @@ enum ProviderRequest<Err> {
     BlockHash(BlockHashFuture<Err>),
     FullBlock(FullBlockFuture<Err>),
     Transaction(TransactionFuture<Err>),
+    AnyRequest(Box<dyn WrappedAnyRequest>),
 }
 
 /// The Request type the Backend listens for
@@ -96,6 +129,8 @@ enum BackendRequest {
     UpdateStorage(StorageData),
     /// Update Block Hashes
     UpdateBlockHash(BlockHashData),
+    /// Any other request
+    AnyRequest(Box<dyn WrappedAnyRequest>),
 }
 
 /// Handles an internal provider and listens for requests.
@@ -209,6 +244,9 @@ where
                 for (block, hash) in block_hash_data {
                     self.db.block_hashes().write().insert(block, hash);
                 }
+            }
+            BackendRequest::AnyRequest(fut) => {
+                self.pending_requests.push(ProviderRequest::AnyRequest(fut));
             }
         }
     }
@@ -505,6 +543,11 @@ where
                             continue;
                         }
                     }
+                    ProviderRequest::AnyRequest(fut) => {
+                        if fut.poll_inner(cx).is_ready() {
+                            continue;
+                        }
+                    }
                 }
                 // not ready, insert and poll again
                 pin.pending_requests.push(request);
@@ -755,6 +798,23 @@ impl SharedBackend {
                 error!(target: "sharedbackend", "Failed to send update address request: {:?}", e)
             }
         }
+    }
+
+    /// Returns any arbitrary request on the provider
+    pub fn do_any_req<T, F>(&mut self, fut: F) -> DatabaseResult<T>
+    where
+        F: Future<Output = Result<T, eyre::Report>> + Send + 'static,
+        T: fmt::Debug + Send + 'static,
+    {
+        self.blocking_mode.run(|| {
+            let (sender, rx) = oneshot_channel::<Result<T, eyre::Report>>();
+            let req = BackendRequest::AnyRequest(Box::new(AnyRequestFuture {
+                sender,
+                future: Box::pin(fut),
+            }));
+            self.backend.unbounded_send(req)?;
+            rx.recv()?.map_err(|err| DatabaseError::AnyRequest(Arc::new(err)))
+        })
     }
 
     /// Flushes the DB to disk if caching is enabled
@@ -1245,5 +1305,32 @@ mod tests {
 
         // erase the temporary file
         fs::remove_file("test-data/storage-tmp.json").unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn shared_backend_any_request() {
+        let Some(endpoint) = ENDPOINT else { return };
+
+        let provider = get_http_provider(endpoint);
+        let meta = BlockchainDbMeta {
+            cfg_env: Default::default(),
+            block_env: Default::default(),
+            hosts: BTreeSet::from([endpoint.to_string()]),
+        };
+
+        let db = BlockchainDb::new(meta, None);
+        let provider_inner = provider.clone();
+        let mut backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
+
+        let handle = std::thread::spawn(move || {
+            let address: Address = "0x5B56438000bAc5ed2c6E0c1EcFF4354aBfFaf889".parse().unwrap();
+            backend.do_any_req(async move {
+                let bytecode: alloy_primitives::Bytes = provider_inner.get_code_at(address).await?;
+                Ok(Some(bytecode))
+            })
+        });
+
+        let bytecode = handle.join().unwrap().unwrap();
+        assert!(bytecode.is_some(), "Expected bytecode, but got None");
     }
 }
