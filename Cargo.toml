@@ -54,3 +54,4 @@ url = "2"
 [dev-dependencies]
 alloy-rpc-client = "0.6"
 alloy-transport-http = "0.6"
+tiny_http = "0.11"
