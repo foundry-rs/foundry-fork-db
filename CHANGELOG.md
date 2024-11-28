@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.8.0) - 2024-11-28
+
+### Dependencies
+
+- Bump alloy ([#33](https://github.com/foundry-rs/foundry-fork-db/issues/33))
+
 ## [0.7.2](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.7.2) - 2024-11-27
 
 ### Documentation
@@ -15,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - [backend] Add support for arbitrary provider requests with AnyRequest ([#32](https://github.com/foundry-rs/foundry-fork-db/issues/32))
+
+### Miscellaneous Tasks
+
+- Release 0.7.2
 
 ## [0.7.1](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.7.1) - 2024-11-09
 
