@@ -5,11 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.9.0) - 2024-12-10
+
+### Dependencies
+
+- Bump alloy 0.8 ([#38](https://github.com/foundry-rs/foundry-fork-db/issues/38))
+- Bump MSRV to 1.81 ([#37](https://github.com/foundry-rs/foundry-fork-db/issues/37))
+- Bump breaking deps ([#36](https://github.com/foundry-rs/foundry-fork-db/issues/36))
+
+### Miscellaneous Tasks
+
+- Update deny.toml ([#35](https://github.com/foundry-rs/foundry-fork-db/issues/35))
+
+### Other
+
+- Move deny to ci ([#34](https://github.com/foundry-rs/foundry-fork-db/issues/34))
+
 ## [0.8.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.8.0) - 2024-11-28
 
 ### Dependencies
 
 - Bump alloy ([#33](https://github.com/foundry-rs/foundry-fork-db/issues/33))
+
+### Miscellaneous Tasks
+
+- Release 0.8.0
 
 ## [0.7.2](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.7.2) - 2024-11-27
 
