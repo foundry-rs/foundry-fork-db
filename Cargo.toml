@@ -26,18 +26,18 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 alloy-primitives = { version = "0.8.5", features = ["map"] }
-alloy-provider = { version = "0.8", default-features = false }
-alloy-rpc-types = { version = "0.8", features = ["eth"] }
-alloy-serde = { version = "0.8", default-features = false }
-alloy-transport = { version = "0.8", default-features = false }
-alloy-consensus = { version = "0.8", default-features = false }
+alloy-provider = { version = "0.9", default-features = false }
+alloy-rpc-types = { version = "0.9", features = ["eth"] }
+alloy-serde = { version = "0.9", default-features = false }
+alloy-transport = { version = "0.9", default-features = false }
+alloy-consensus = { version = "0.9", default-features = false }
 
 eyre = "0.6"
 futures = "0.3"
 
 parking_lot = "0.12"
 
-revm = { version = "18.0.0", default-features = false, features = [
+revm = { version = "19.0.0", default-features = false, features = [
     "std",
     "serde",
 ] }
@@ -52,6 +52,6 @@ tracing = "0.1"
 url = "2"
 
 [dev-dependencies]
-alloy-rpc-client = "0.8"
-alloy-transport-http = "0.8"
+alloy-rpc-client = "0.9"
+alloy-transport-http = "0.9"
 tiny_http = "0.12"
