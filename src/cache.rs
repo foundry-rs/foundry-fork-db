@@ -162,6 +162,7 @@ impl BlockchainDbMeta {
             prevrandao: block.header.mix_hash(),
             blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(
                 block.header.excess_blob_gas().unwrap_or_default(),
+                false,
             )),
         };
 

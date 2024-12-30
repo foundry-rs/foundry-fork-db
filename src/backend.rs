@@ -318,7 +318,7 @@ where
             let block = provider
                 .get_block(number, true.into())
                 .await
-                .wrap_err("could not fetch block {number:?}");
+                .wrap_err(format!("could not fetch block {number:?}"));
             (sender, block, number)
         });
 
