@@ -165,7 +165,7 @@ pub struct BackendHandler<P> {
     block_id: Option<BlockId>,
 }
 
-impl< P> BackendHandler<P>
+impl<P> BackendHandler<P>
 where
     P: Provider<AnyNetwork> + Clone + Unpin + 'static,
 {
@@ -642,11 +642,7 @@ impl SharedBackend {
     /// dropped.
     ///
     /// NOTE: this should be called with `Arc<Provider>`
-    pub async fn spawn_backend<P>(
-        provider: P,
-        db: BlockchainDb,
-        pin_block: Option<BlockId>,
-    ) -> Self
+    pub async fn spawn_backend<P>(provider: P, db: BlockchainDb, pin_block: Option<BlockId>) -> Self
     where
         P: Provider<AnyNetwork> + Unpin + 'static + Clone,
     {
@@ -659,7 +655,7 @@ impl SharedBackend {
 
     /// Same as `Self::spawn_backend` but spawns the `BackendHandler` on a separate `std::thread` in
     /// its own `tokio::Runtime`
-    pub fn spawn_backend_thread< P>(
+    pub fn spawn_backend_thread<P>(
         provider: P,
         db: BlockchainDb,
         pin_block: Option<BlockId>,
@@ -907,7 +903,7 @@ impl DatabaseRef for SharedBackend {
 mod tests {
     use super::*;
     use crate::cache::{BlockchainDbMeta, JsonBlockCacheDB};
-    use alloy_provider::{ProviderBuilder};
+    use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
     use serde::Deserialize;
     use std::{collections::BTreeSet, fs, path::PathBuf};
