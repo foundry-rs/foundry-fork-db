@@ -11,7 +11,6 @@ use alloy_provider::{
 };
 use alloy_rpc_types::{BlockId, Transaction};
 use alloy_serde::WithOtherFields;
-use alloy_transport::Transport;
 use eyre::WrapErr;
 use futures::{
     channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
@@ -30,7 +29,6 @@ use std::{
     collections::VecDeque,
     fmt,
     future::IntoFuture,
-    marker::PhantomData,
     path::Path,
     pin::Pin,
     sync::{
@@ -146,9 +144,8 @@ enum BackendRequest {
 /// This handler will remain active as long as it is reachable (request channel still open) and
 /// requests are in progress.
 #[must_use = "futures do nothing unless polled"]
-pub struct BackendHandler<T, P> {
+pub struct BackendHandler<P> {
     provider: P,
-    transport: PhantomData<T>,
     /// Stores all the data.
     db: BlockchainDb,
     /// Requests currently in progress
@@ -168,10 +165,9 @@ pub struct BackendHandler<T, P> {
     block_id: Option<BlockId>,
 }
 
-impl<T, P> BackendHandler<T, P>
+impl< P> BackendHandler<P>
 where
-    T: Transport + Clone,
-    P: Provider<T, AnyNetwork> + Clone + Unpin + 'static,
+    P: Provider<AnyNetwork> + Clone + Unpin + 'static,
 {
     fn new(
         provider: P,
@@ -189,7 +185,6 @@ where
             queued_requests: Default::default(),
             incoming: rx,
             block_id,
-            transport: PhantomData,
         }
     }
 
@@ -382,10 +377,9 @@ where
     }
 }
 
-impl<T, P> Future for BackendHandler<T, P>
+impl<P> Future for BackendHandler<P>
 where
-    T: Transport + Clone + Unpin,
-    P: Provider<T, AnyNetwork> + Clone + Unpin + 'static,
+    P: Provider<AnyNetwork> + Clone + Unpin + 'static,
 {
     type Output = ();
 
@@ -648,14 +642,13 @@ impl SharedBackend {
     /// dropped.
     ///
     /// NOTE: this should be called with `Arc<Provider>`
-    pub async fn spawn_backend<T, P>(
+    pub async fn spawn_backend<P>(
         provider: P,
         db: BlockchainDb,
         pin_block: Option<BlockId>,
     ) -> Self
     where
-        T: Transport + Clone + Unpin,
-        P: Provider<T, AnyNetwork> + Unpin + 'static + Clone,
+        P: Provider<AnyNetwork> + Unpin + 'static + Clone,
     {
         let (shared, handler) = Self::new(provider, db, pin_block);
         // spawn the provider handler to a task
@@ -666,14 +659,13 @@ impl SharedBackend {
 
     /// Same as `Self::spawn_backend` but spawns the `BackendHandler` on a separate `std::thread` in
     /// its own `tokio::Runtime`
-    pub fn spawn_backend_thread<T, P>(
+    pub fn spawn_backend_thread< P>(
         provider: P,
         db: BlockchainDb,
         pin_block: Option<BlockId>,
     ) -> Self
     where
-        T: Transport + Clone + Unpin,
-        P: Provider<T, AnyNetwork> + Unpin + 'static + Clone,
+        P: Provider<AnyNetwork> + Unpin + 'static + Clone,
     {
         let (shared, handler) = Self::new(provider, db, pin_block);
 
@@ -696,14 +688,13 @@ impl SharedBackend {
     }
 
     /// Returns a new `SharedBackend` and the `BackendHandler`
-    pub fn new<T, P>(
+    pub fn new<P>(
         provider: P,
         db: BlockchainDb,
         pin_block: Option<BlockId>,
-    ) -> (Self, BackendHandler<T, P>)
+    ) -> (Self, BackendHandler<P>)
     where
-        T: Transport + Clone + Unpin,
-        P: Provider<T, AnyNetwork> + Unpin + 'static + Clone,
+        P: Provider<AnyNetwork> + Unpin + 'static + Clone,
     {
         let (backend, backend_rx) = unbounded();
         let cache = Arc::new(FlushJsonBlockCacheDB(Arc::clone(db.cache())));
@@ -916,14 +907,13 @@ impl DatabaseRef for SharedBackend {
 mod tests {
     use super::*;
     use crate::cache::{BlockchainDbMeta, JsonBlockCacheDB};
-    use alloy_provider::{ProviderBuilder, RootProvider};
+    use alloy_provider::{ProviderBuilder};
     use alloy_rpc_client::ClientBuilder;
-    use alloy_transport_http::{Client, Http};
     use serde::Deserialize;
     use std::{collections::BTreeSet, fs, path::PathBuf};
     use tiny_http::{Response, Server};
 
-    pub fn get_http_provider(endpoint: &str) -> RootProvider<Http<Client>, AnyNetwork> {
+    pub fn get_http_provider(endpoint: &str) -> impl Provider<AnyNetwork> + Clone {
         ProviderBuilder::new()
             .network::<AnyNetwork>()
             .on_client(ClientBuilder::default().http(endpoint.parse().unwrap()))
