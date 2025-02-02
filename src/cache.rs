@@ -468,7 +468,7 @@ impl JsonBlockCacheDB {
 
     /// Returns the cache path.
     pub fn cache_path(&self) -> Option<&Path> {
-        self.cache_path.as_ref().map(PathBuf::as_path)
+        self.cache_path.as_deref()
     }
 }
 
