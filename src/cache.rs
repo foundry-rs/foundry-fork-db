@@ -467,8 +467,8 @@ impl JsonBlockCacheDB {
     }
 
     /// Returns the cache path.
-    pub const fn cache_path(&self) -> Option<&PathBuf> {
-        self.cache_path.as_ref()
+    pub fn cache_path(&self) -> Option<&Path> {
+        self.cache_path.as_ref().map(PathBuf::as_path)
     }
 }
 
@@ -691,7 +691,7 @@ mod tests {
             Arc::new(RwLock::new(BlockchainDbMeta::default())),
             Some(PathBuf::from("/tmp/foo")),
         );
-        assert_eq!(Some(&PathBuf::from("/tmp/foo")), cache_db.cache_path());
+        assert_eq!(Some(Path::new("/tmp/foo")), cache_db.cache_path());
 
         // unset
         let cache_db =
