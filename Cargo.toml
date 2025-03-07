@@ -26,9 +26,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 alloy-primitives = { version = "0.8.22", features = ["map"] }
-alloy-provider = { version = "0.11", default-features = false }
-alloy-rpc-types = { version = "0.11", features = ["eth"] }
-alloy-consensus = { version = "0.11", default-features = false }
+alloy-provider = { version = "0.12", default-features = false }
+alloy-rpc-types = { version = "0.12", features = ["eth"] }
+alloy-consensus = { version = "0.12", default-features = false }
 
 eyre = "0.6"
 futures = "0.3"
@@ -53,8 +53,8 @@ url = "2"
 alloy-rpc-client = "0.11"
 tiny_http = "0.12"
 
-[patch.crates-io]
-alloy-provider = { git = "https://github.com/alloy-rs/alloy", rev = "a4e7099" }
-alloy-rpc-types = { git = "https://github.com/alloy-rs/alloy", rev = "a4e7099" }
-alloy-consensus = { git = "https://github.com/alloy-rs/alloy", rev = "a4e7099" }
-alloy-rpc-client = { git = "https://github.com/alloy-rs/alloy", rev = "a4e7099" }
+# [patch.crates-io]
+# alloy-provider = { git = "https://github.com/alloy-rs/alloy", rev = "a4e7099" }
+# alloy-rpc-types = { git = "https://github.com/alloy-rs/alloy", rev = "a4e7099" }
+# alloy-consensus = { git = "https://github.com/alloy-rs/alloy", rev = "a4e7099" }
+# alloy-rpc-client = { git = "https://github.com/alloy-rs/alloy", rev = "a4e7099" }
