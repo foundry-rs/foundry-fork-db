@@ -50,7 +50,7 @@ tracing = "0.1"
 url = "2"
 
 [dev-dependencies]
-alloy-rpc-client = "0.11"
+alloy-rpc-client = "0.12"
 tiny_http = "0.12"
 
 # [patch.crates-io]
