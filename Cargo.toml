@@ -28,7 +28,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 alloy-primitives = { version = "0.8.5", features = ["map"] }
 alloy-provider = { version = "0.11", default-features = false }
 alloy-rpc-types = { version = "0.11", features = ["eth"] }
-alloy-serde = { version = "0.11", default-features = false }
 alloy-consensus = { version = "0.11", default-features = false }
 
 eyre = "0.6"
@@ -53,3 +52,9 @@ url = "2"
 [dev-dependencies]
 alloy-rpc-client = "0.11"
 tiny_http = "0.12"
+
+[patch.crates-io]
+alloy-provider = { git = "https://github.com/alloy-rs/alloy", rev = "a4e7099" }
+alloy-rpc-types = { git = "https://github.com/alloy-rs/alloy", rev = "a4e7099" }
+alloy-consensus = { git = "https://github.com/alloy-rs/alloy", rev = "a4e7099" }
+alloy-rpc-client = { git = "https://github.com/alloy-rs/alloy", rev = "a4e7099" }

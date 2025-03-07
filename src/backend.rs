@@ -6,11 +6,10 @@ use crate::{
 };
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_provider::{
-    network::{AnyNetwork, AnyRpcBlock, AnyRpcTransaction, AnyTxEnvelope},
+    network::{AnyNetwork, AnyRpcBlock, AnyRpcTransaction},
     Provider,
 };
-use alloy_rpc_types::{BlockId, Transaction};
-use alloy_serde::WithOtherFields;
+use alloy_rpc_types::BlockId;
 use eyre::WrapErr;
 use futures::{
     channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
@@ -311,7 +310,8 @@ where
         let provider = self.provider.clone();
         let fut = Box::pin(async move {
             let block = provider
-                .get_block(number, true.into())
+                .get_block(number)
+                .full()
                 .await
                 .wrap_err(format!("could not fetch block {number:?}"));
             (sender, block, number)
@@ -349,10 +349,8 @@ where
                 let provider = self.provider.clone();
                 let fut = Box::pin(async move {
                     let block = provider
-                        .get_block_by_number(
-                            number.into(),
-                            alloy_rpc_types::BlockTransactionsKind::Hashes,
-                        )
+                        .get_block_by_number(number.into())
+                        .hashes()
                         .await
                         .wrap_err("failed to get block");
 
@@ -720,10 +718,7 @@ impl SharedBackend {
     }
 
     /// Returns the transaction for the hash
-    pub fn get_transaction(
-        &self,
-        tx: B256,
-    ) -> DatabaseResult<WithOtherFields<Transaction<AnyTxEnvelope>>> {
+    pub fn get_transaction(&self, tx: B256) -> DatabaseResult<AnyRpcTransaction> {
         self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::Transaction(tx, sender);
@@ -922,11 +917,7 @@ mod tests {
         let Some(endpoint) = ENDPOINT else { return };
         let provider = get_http_provider(endpoint);
 
-        let any_rpc_block = provider
-            .get_block(BlockId::latest(), alloy_rpc_types::BlockTransactionsKind::Hashes)
-            .await
-            .unwrap()
-            .unwrap();
+        let any_rpc_block = provider.get_block(BlockId::latest()).hashes().await.unwrap().unwrap();
         let _meta = BlockchainDbMeta::default().with_block(&any_rpc_block.inner);
     }
 
