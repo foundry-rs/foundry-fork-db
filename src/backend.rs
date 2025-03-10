@@ -18,11 +18,12 @@ use futures::{
     Future, FutureExt,
 };
 use revm::{
-    db::DatabaseRef,
+    database::DatabaseRef,
     primitives::{
         map::{hash_map::Entry, AddressHashMap, HashMap},
-        AccountInfo, Bytecode, KECCAK_EMPTY,
+        KECCAK_EMPTY,
     },
+    state::{AccountInfo, Bytecode},
 };
 use std::{
     collections::VecDeque,
@@ -927,7 +928,6 @@ mod tests {
 
         let provider = get_http_provider(endpoint);
         let meta = BlockchainDbMeta {
-            cfg_env: Default::default(),
             block_env: Default::default(),
             hosts: BTreeSet::from([endpoint.to_string()]),
         };
@@ -979,7 +979,6 @@ mod tests {
 
         let provider = get_http_provider(endpoint);
         let meta = BlockchainDbMeta {
-            cfg_env: Default::default(),
             block_env: Default::default(),
             hosts: BTreeSet::from([endpoint.to_string()]),
         };
@@ -1049,7 +1048,6 @@ mod tests {
 
         let provider = get_http_provider(endpoint);
         let meta = BlockchainDbMeta {
-            cfg_env: Default::default(),
             block_env: Default::default(),
             hosts: BTreeSet::from([endpoint.to_string()]),
         };
@@ -1112,7 +1110,6 @@ mod tests {
 
         let provider = get_http_provider(endpoint);
         let meta = BlockchainDbMeta {
-            cfg_env: Default::default(),
             block_env: Default::default(),
             hosts: BTreeSet::from([endpoint.to_string()]),
         };
@@ -1166,7 +1163,6 @@ mod tests {
 
         let provider = get_http_provider(endpoint);
         let meta = BlockchainDbMeta {
-            cfg_env: Default::default(),
             block_env: Default::default(),
             hosts: BTreeSet::from([endpoint.to_string()]),
         };
@@ -1326,7 +1322,6 @@ mod tests {
 
         let provider = get_http_provider(&endpoint);
         let meta = BlockchainDbMeta {
-            cfg_env: Default::default(),
             block_env: Default::default(),
             hosts: BTreeSet::from([endpoint.to_string()]),
         };
