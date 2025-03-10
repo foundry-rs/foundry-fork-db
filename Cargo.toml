@@ -35,7 +35,7 @@ futures = "0.3"
 
 parking_lot = "0.12"
 
-revm = { git = "https://github.com/bluealloy/revm", rev = "8da555e", features = [
+revm = { git = "https://github.com/bluealloy/revm", rev = "2015973", features = [
     "std",
     "serde",
 ] }
