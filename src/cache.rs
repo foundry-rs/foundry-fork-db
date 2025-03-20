@@ -512,12 +512,12 @@ mod tests {
             "disable_base_fee": false
         },
         "block_env": {
-            "number": "0xed3ddf",
+            "number": 15547871,
             "coinbase": "0x0000000000000000000000000000000000000000",
-            "timestamp": "0x6324bc3f",
+            "timestamp": 1663351871,
             "difficulty": "0x0",
-            "basefee": "0x2e5fda223",
-            "gas_limit": "0x1c9c380",
+            "basefee": 12448539171,
+            "gas_limit": 30000000,
             "prevrandao": "0x0000000000000000000000000000000000000000000000000000000000000000"
         },
         "hosts": [
@@ -591,11 +591,11 @@ mod tests {
             "optimism": false
         },
         "block_env": {
-            "number": "0x11c99bc",
+            "number": 18651580,
             "coinbase": "0x4838b106fce9647bdf1e7877bf73ce8b0bad5f97",
-            "timestamp": "0x65627003",
-            "gas_limit": "0x1c9c380",
-            "basefee": "0x64288ff1f",
+            "timestamp": 1700950019,
+            "gas_limit": 30000000,
+            "basefee": 26886078239,
             "difficulty": "0xc6b1a299886016dea3865689f8393b9bf4d8f4fe8c0ad25f0058b3569297c057",
             "prevrandao": "0xc6b1a299886016dea3865689f8393b9bf4d8f4fe8c0ad25f0058b3569297c057",
             "blob_excess_gas_and_price": {
