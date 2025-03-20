@@ -1,7 +1,10 @@
 [advisories]
 version = 2
 yanked = "warn"
-ignore = []
+ignore = [
+    # https://github.com/dtolnay/paste
+    "RUSTSEC-2024-0436",
+]
 
 [bans]
 multiple-versions = "warn"
@@ -37,6 +40,8 @@ exceptions = [
     # https://tldrlegal.com/license/creative-commons-cc0-1.0-universal
     { allow = ["CC0-1.0"], name = "tiny-keccak" },
     { allow = ["CC0-1.0"], name = "aurora-engine-modexp" },
+    { allow = ["CC0-1.0"], name = "secp256k1" },
+    { allow = ["CC0-1.0"], name = "secp256k1-sys" },
 ]
 
 [[licenses.clarify]]
