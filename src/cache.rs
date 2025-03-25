@@ -125,9 +125,9 @@ impl BlockchainDb {
 /// relevant identifying markers in the context of [BlockchainDb]
 #[derive(Clone, Debug, Eq, Serialize, Default)]
 pub struct BlockchainDbMeta {
-    /// block env
+    /// The block environment
     pub block_env: BlockEnv,
-    /// all the hosts used to connect to
+    /// All the hosts used to connect to
     pub hosts: BTreeSet<String>,
 }
 
