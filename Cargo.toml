@@ -16,7 +16,7 @@ rust.rust_2018_idioms = { level = "deny", priority = -1 }
 rustdoc.all = "warn"
 
 [lints.clippy]
-missing_const_for_fn = "warn"
+missing_const_for_fn = "allow" # TODO: https://github.com/rust-lang/rust-clippy/issues/14020
 use_self = "warn"
 option_if_let_else = "warn"
 
