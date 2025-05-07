@@ -908,7 +908,7 @@ mod tests {
     pub fn get_http_provider(endpoint: &str) -> impl Provider<AnyNetwork> + Clone {
         ProviderBuilder::new()
             .network::<AnyNetwork>()
-            .on_client(ClientBuilder::default().http(endpoint.parse().unwrap()))
+            .connect_client(ClientBuilder::default().http(endpoint.parse().unwrap()))
     }
 
     const ENDPOINT: Option<&str> = option_env!("ETH_RPC_URL");
