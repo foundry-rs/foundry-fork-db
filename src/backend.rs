@@ -36,6 +36,7 @@ use std::{
         Arc,
     },
 };
+use tokio::sync::Mutex;
 
 /// Logged when an error is indicative that the user is trying to fork from a non-archive node.
 pub const NON_ARCHIVE_NODE_WARNING: &str = "\
@@ -139,6 +140,16 @@ enum BackendRequest {
     AnyRequest(Box<dyn WrappedAnyRequest>),
 }
 
+/// Mode for fetching account data from the provider
+#[derive(Debug, Default, Clone)]
+enum GetAccountMode {
+    /// The provider supports `eth_getAccountInfo`
+    #[default]
+    EthGetAccountInfo,
+    /// Must fetch balance, nonce, and code concurrently
+    AccountCodeNonce,
+}
+
 /// Handles an internal provider and listens for requests.
 ///
 /// This handler will remain active as long as it is reachable (request channel still open) and
@@ -163,6 +174,8 @@ pub struct BackendHandler<P> {
     /// The block to fetch data from.
     // This is an `Option` so that we can have less code churn in the functions below
     block_id: Option<BlockId>,
+    /// The mode for fetching account data
+    account_fetch_mode: GetAccountMode,
 }
 
 impl<P> BackendHandler<P>
@@ -185,6 +198,7 @@ where
             queued_requests: Default::default(),
             incoming: rx,
             block_id,
+            account_fetch_mode: Default::default(),
         }
     }
 
@@ -279,18 +293,48 @@ where
     }
 
     /// returns the future that fetches the account data
-    fn get_account_req(&self, address: Address) -> ProviderRequest<eyre::Report> {
+    fn get_account_req(&mut self, address: Address) -> ProviderRequest<eyre::Report> {
         trace!(target: "backendhandler", "preparing account request, address={:?}", address);
         let provider = self.provider.clone();
         let block_id = self.block_id.unwrap_or_default();
+        let mode = Arc::new(Mutex::new(self.account_fetch_mode.clone()));
+        let mode_clone = Arc::clone(&mode);
+
         let fut = Box::pin(async move {
-            let balance = provider.get_balance(address).block_id(block_id).into_future();
-            let nonce = provider.get_transaction_count(address).block_id(block_id).into_future();
-            let code = provider.get_code_at(address).block_id(block_id).into_future();
-            let resp = tokio::try_join!(balance, nonce, code).map_err(Into::into);
-            (resp, address)
+            let mut mode = mode_clone.lock().await;
+
+            match *mode {
+                GetAccountMode::EthGetAccountInfo => {
+                    match provider.get_account_info(address).block_id(block_id).await {
+                        Ok(info) => Ok((info.balance, info.nonce, info.code)),
+                        Err(_) => {
+                            *mode = GetAccountMode::AccountCodeNonce;
+                            let balance =
+                                provider.get_balance(address).block_id(block_id).into_future();
+                            let nonce = provider
+                                .get_transaction_count(address)
+                                .block_id(block_id)
+                                .into_future();
+                            let code =
+                                provider.get_code_at(address).block_id(block_id).into_future();
+                            tokio::try_join!(balance, nonce, code).map_err(Into::into)
+                        }
+                    }
+                }
+                GetAccountMode::AccountCodeNonce => {
+                    let balance = provider.get_balance(address).block_id(block_id).into_future();
+                    let nonce =
+                        provider.get_transaction_count(address).block_id(block_id).into_future();
+                    let code = provider.get_code_at(address).block_id(block_id).into_future();
+                    tokio::try_join!(balance, nonce, code).map_err(Into::into)
+                }
+            }
         });
-        ProviderRequest::Account(fut)
+
+        ProviderRequest::Account(Box::pin(async move {
+            let result = fut.await;
+            (result, address)
+        }))
     }
 
     /// process a request for an account
@@ -301,7 +345,8 @@ where
             }
             Entry::Vacant(entry) => {
                 entry.insert(vec![listener]);
-                self.pending_requests.push(self.get_account_req(address));
+                let account_req = self.get_account_req(address);
+                self.pending_requests.push(account_req);
             }
         }
     }
