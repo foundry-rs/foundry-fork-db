@@ -32,11 +32,11 @@ use std::{
     path::Path,
     pin::Pin,
     sync::{
+        atomic::{AtomicU8, Ordering},
         mpsc::{channel as oneshot_channel, Sender as OneshotSender},
         Arc,
     },
 };
-use tokio::sync::Mutex;
 
 /// Logged when an error is indicative that the user is trying to fork from a non-archive node.
 pub const NON_ARCHIVE_NODE_WARNING: &str = "\
@@ -64,6 +64,11 @@ type TransactionSender = OneshotSender<DatabaseResult<AnyRpcTransaction>>;
 type AddressData = AddressHashMap<AccountInfo>;
 type StorageData = AddressHashMap<StorageInfo>;
 type BlockHashData = HashMap<U256, B256>;
+
+/// Constants for account fetching modes
+const ACCOUNT_FETCH_UNCHECKED: u8 = 0;
+const ACCOUNT_FETCH_SUPPORTS_ACC_INFO: u8 = 1;
+const ACCOUNT_FETCH_SEPARATE_REQUESTS: u8 = 2;
 
 struct AnyRequestFuture<T, Err> {
     sender: OneshotSender<Result<T, Err>>,
@@ -140,16 +145,6 @@ enum BackendRequest {
     AnyRequest(Box<dyn WrappedAnyRequest>),
 }
 
-/// Mode for fetching account data from the provider
-#[derive(Debug, Default, Clone)]
-enum GetAccountMode {
-    /// The provider supports `eth_getAccountInfo`
-    #[default]
-    EthGetAccountInfo,
-    /// Must fetch balance, nonce, and code concurrently
-    AccountCodeNonce,
-}
-
 /// Handles an internal provider and listens for requests.
 ///
 /// This handler will remain active as long as it is reachable (request channel still open) and
@@ -175,7 +170,7 @@ pub struct BackendHandler<P> {
     // This is an `Option` so that we can have less code churn in the functions below
     block_id: Option<BlockId>,
     /// The mode for fetching account data
-    account_fetch_mode: GetAccountMode,
+    account_fetch_mode: Arc<AtomicU8>,
 }
 
 impl<P> BackendHandler<P>
@@ -198,7 +193,7 @@ where
             queued_requests: Default::default(),
             incoming: rx,
             block_id,
-            account_fetch_mode: Default::default(),
+            account_fetch_mode: Arc::new(AtomicU8::new(ACCOUNT_FETCH_UNCHECKED)),
         }
     }
 
@@ -297,37 +292,45 @@ where
         trace!(target: "backendhandler", "preparing account request, address={:?}", address);
         let provider = self.provider.clone();
         let block_id = self.block_id.unwrap_or_default();
-        let mode = Arc::new(Mutex::new(self.account_fetch_mode.clone()));
-        let mode_clone = Arc::clone(&mode);
+        let mode = Arc::clone(&self.account_fetch_mode);
 
         let fut = Box::pin(async move {
-            let mut mode = mode_clone.lock().await;
-
-            match *mode {
-                GetAccountMode::EthGetAccountInfo => {
+            match mode.load(Ordering::Relaxed) {
+                ACCOUNT_FETCH_UNCHECKED | ACCOUNT_FETCH_SUPPORTS_ACC_INFO => {
                     match provider.get_account_info(address).block_id(block_id).await {
-                        Ok(info) => Ok((info.balance, info.nonce, info.code)),
-                        Err(_) => {
-                            *mode = GetAccountMode::AccountCodeNonce;
-                            let balance =
-                                provider.get_balance(address).block_id(block_id).into_future();
-                            let nonce = provider
-                                .get_transaction_count(address)
-                                .block_id(block_id)
-                                .into_future();
-                            let code =
-                                provider.get_code_at(address).block_id(block_id).into_future();
-                            tokio::try_join!(balance, nonce, code).map_err(Into::into)
+                        Ok(info) => {
+                            if mode.load(Ordering::Relaxed) == ACCOUNT_FETCH_UNCHECKED {
+                                mode.store(ACCOUNT_FETCH_SUPPORTS_ACC_INFO, Ordering::Relaxed);
+                            }
+                            Ok((info.balance, info.nonce, info.code))
+                        }
+                        Err(err) => {
+                            if mode.load(Ordering::Relaxed) == ACCOUNT_FETCH_UNCHECKED {
+                                mode.store(ACCOUNT_FETCH_SEPARATE_REQUESTS, Ordering::Relaxed);
+                                // Try the separate requests approach
+                                let balance =
+                                    provider.get_balance(address).block_id(block_id).into_future();
+                                let nonce = provider
+                                    .get_transaction_count(address)
+                                    .block_id(block_id)
+                                    .into_future();
+                                let code =
+                                    provider.get_code_at(address).block_id(block_id).into_future();
+                                tokio::try_join!(balance, nonce, code).map_err(Into::into)
+                            } else {
+                                Err(err.into())
+                            }
                         }
                     }
                 }
-                GetAccountMode::AccountCodeNonce => {
+                ACCOUNT_FETCH_SEPARATE_REQUESTS => {
                     let balance = provider.get_balance(address).block_id(block_id).into_future();
                     let nonce =
                         provider.get_transaction_count(address).block_id(block_id).into_future();
                     let code = provider.get_code_at(address).block_id(block_id).into_future();
                     tokio::try_join!(balance, nonce, code).map_err(Into::into)
                 }
+                _ => unreachable!("Invalid account fetch mode"),
             }
         });
 
