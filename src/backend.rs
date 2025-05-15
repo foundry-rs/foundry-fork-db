@@ -32,6 +32,7 @@ use std::{
     path::Path,
     pin::Pin,
     sync::{
+        atomic::{AtomicU8, Ordering},
         mpsc::{channel as oneshot_channel, Sender as OneshotSender},
         Arc,
     },
@@ -63,6 +64,11 @@ type TransactionSender = OneshotSender<DatabaseResult<AnyRpcTransaction>>;
 type AddressData = AddressHashMap<AccountInfo>;
 type StorageData = AddressHashMap<StorageInfo>;
 type BlockHashData = HashMap<U256, B256>;
+
+/// Constants for account fetching modes
+const ACCOUNT_FETCH_UNCHECKED: u8 = 0;
+const ACCOUNT_FETCH_SUPPORTS_ACC_INFO: u8 = 1;
+const ACCOUNT_FETCH_SEPARATE_REQUESTS: u8 = 2;
 
 struct AnyRequestFuture<T, Err> {
     sender: OneshotSender<Result<T, Err>>,
@@ -163,6 +169,8 @@ pub struct BackendHandler<P> {
     /// The block to fetch data from.
     // This is an `Option` so that we can have less code churn in the functions below
     block_id: Option<BlockId>,
+    /// The mode for fetching account data
+    account_fetch_mode: Arc<AtomicU8>,
 }
 
 impl<P> BackendHandler<P>
@@ -185,6 +193,7 @@ where
             queued_requests: Default::default(),
             incoming: rx,
             block_id,
+            account_fetch_mode: Arc::new(AtomicU8::new(ACCOUNT_FETCH_UNCHECKED)),
         }
     }
 
@@ -279,18 +288,56 @@ where
     }
 
     /// returns the future that fetches the account data
-    fn get_account_req(&self, address: Address) -> ProviderRequest<eyre::Report> {
+    fn get_account_req(&mut self, address: Address) -> ProviderRequest<eyre::Report> {
         trace!(target: "backendhandler", "preparing account request, address={:?}", address);
         let provider = self.provider.clone();
         let block_id = self.block_id.unwrap_or_default();
+        let mode = Arc::clone(&self.account_fetch_mode);
+
         let fut = Box::pin(async move {
-            let balance = provider.get_balance(address).block_id(block_id).into_future();
-            let nonce = provider.get_transaction_count(address).block_id(block_id).into_future();
-            let code = provider.get_code_at(address).block_id(block_id).into_future();
-            let resp = tokio::try_join!(balance, nonce, code).map_err(Into::into);
-            (resp, address)
+            match mode.load(Ordering::Relaxed) {
+                ACCOUNT_FETCH_UNCHECKED | ACCOUNT_FETCH_SUPPORTS_ACC_INFO => {
+                    match provider.get_account_info(address).block_id(block_id).await {
+                        Ok(info) => {
+                            if mode.load(Ordering::Relaxed) == ACCOUNT_FETCH_UNCHECKED {
+                                mode.store(ACCOUNT_FETCH_SUPPORTS_ACC_INFO, Ordering::Relaxed);
+                            }
+                            Ok((info.balance, info.nonce, info.code))
+                        }
+                        Err(err) => {
+                            if mode.load(Ordering::Relaxed) == ACCOUNT_FETCH_UNCHECKED {
+                                mode.store(ACCOUNT_FETCH_SEPARATE_REQUESTS, Ordering::Relaxed);
+                                // Try the separate requests approach
+                                let balance =
+                                    provider.get_balance(address).block_id(block_id).into_future();
+                                let nonce = provider
+                                    .get_transaction_count(address)
+                                    .block_id(block_id)
+                                    .into_future();
+                                let code =
+                                    provider.get_code_at(address).block_id(block_id).into_future();
+                                tokio::try_join!(balance, nonce, code).map_err(Into::into)
+                            } else {
+                                Err(err.into())
+                            }
+                        }
+                    }
+                }
+                ACCOUNT_FETCH_SEPARATE_REQUESTS => {
+                    let balance = provider.get_balance(address).block_id(block_id).into_future();
+                    let nonce =
+                        provider.get_transaction_count(address).block_id(block_id).into_future();
+                    let code = provider.get_code_at(address).block_id(block_id).into_future();
+                    tokio::try_join!(balance, nonce, code).map_err(Into::into)
+                }
+                _ => unreachable!("Invalid account fetch mode"),
+            }
         });
-        ProviderRequest::Account(fut)
+
+        ProviderRequest::Account(Box::pin(async move {
+            let result = fut.await;
+            (result, address)
+        }))
     }
 
     /// process a request for an account
@@ -301,7 +348,8 @@ where
             }
             Entry::Vacant(entry) => {
                 entry.insert(vec![listener]);
-                self.pending_requests.push(self.get_account_req(address));
+                let account_req = self.get_account_req(address);
+                self.pending_requests.push(account_req);
             }
         }
     }
