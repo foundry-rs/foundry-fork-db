@@ -26,9 +26,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 alloy-primitives = { version = "1.0", features = ["map"] }
-alloy-provider = { version = "0.15", default-features = false }
-alloy-rpc-types = { version = "0.15", features = ["eth"] }
-alloy-consensus = { version = "0.15", default-features = false }
+alloy-provider = { version = "1.0.3", default-features = false }
+alloy-rpc-types = { version = "1.0.3", features = ["eth"] }
+alloy-consensus = { version = "1.0.3", default-features = false }
 
 eyre = "0.6"
 futures = "0.3"
@@ -47,7 +47,7 @@ tracing = "0.1"
 url = "2"
 
 [dev-dependencies]
-alloy-rpc-client = "0.15"
+alloy-rpc-client = "1.0.3"
 tiny_http = "0.12"
 
 # [patch.crates-io]
