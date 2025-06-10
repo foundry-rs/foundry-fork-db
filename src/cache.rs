@@ -1,4 +1,5 @@
 //! Cache related abstraction
+
 use alloy_consensus::BlockHeader;
 use alloy_primitives::{Address, B256, U256};
 use alloy_provider::network::TransactionResponse;
@@ -7,6 +8,7 @@ use revm::{
     context::BlockEnv,
     context_interface::block::BlobExcessGasAndPrice,
     primitives::{
+        eip4844::BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE,
         map::{AddressHashMap, HashMap},
         KECCAK_EMPTY,
     },
@@ -148,16 +150,16 @@ impl BlockchainDbMeta {
         block: &alloy_rpc_types::Block<T, H>,
     ) -> Self {
         self.block_env = BlockEnv {
-            number: block.header.number(),
+            number: U256::from(block.header.number()),
             beneficiary: block.header.beneficiary(),
-            timestamp: block.header.timestamp(),
+            timestamp: U256::from(block.header.timestamp()),
             difficulty: U256::from(block.header.difficulty()),
             basefee: block.header.base_fee_per_gas().unwrap_or_default(),
             gas_limit: block.header.gas_limit(),
             prevrandao: block.header.mix_hash(),
             blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(
                 block.header.excess_blob_gas().unwrap_or_default(),
-                false,
+                BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE,
             )),
         };
 
