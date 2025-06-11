@@ -10,9 +10,10 @@ use alloy_provider::{
     Provider,
 };
 use alloy_rpc_types::BlockId;
-use eyre::WrapErr;
+use eyre::{Report, WrapErr};
 use futures::{
     channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
+    pin_mut,
     stream::Stream,
     task::{Context, Poll},
     Future, FutureExt,
@@ -32,10 +33,12 @@ use std::{
     path::Path,
     pin::Pin,
     sync::{
+        atomic::{AtomicU8, Ordering},
         mpsc::{channel as oneshot_channel, Sender as OneshotSender},
         Arc,
     },
 };
+use tokio::select;
 
 /// Logged when an error is indicative that the user is trying to fork from a non-archive node.
 pub const NON_ARCHIVE_NODE_WARNING: &str = "\
@@ -63,6 +66,11 @@ type TransactionSender = OneshotSender<DatabaseResult<AnyRpcTransaction>>;
 type AddressData = AddressHashMap<AccountInfo>;
 type StorageData = AddressHashMap<StorageInfo>;
 type BlockHashData = HashMap<U256, B256>;
+
+/// Constants for account fetching modes
+const ACCOUNT_FETCH_UNCHECKED: u8 = 0;
+const ACCOUNT_FETCH_SUPPORTS_ACC_INFO: u8 = 1;
+const ACCOUNT_FETCH_SEPARATE_REQUESTS: u8 = 2;
 
 struct AnyRequestFuture<T, Err> {
     sender: OneshotSender<Result<T, Err>>,
@@ -163,6 +171,8 @@ pub struct BackendHandler<P> {
     /// The block to fetch data from.
     // This is an `Option` so that we can have less code churn in the functions below
     block_id: Option<BlockId>,
+    /// The mode for fetching account data
+    account_fetch_mode: Arc<AtomicU8>,
 }
 
 impl<P> BackendHandler<P>
@@ -185,6 +195,7 @@ where
             queued_requests: Default::default(),
             incoming: rx,
             block_id,
+            account_fetch_mode: Arc::new(AtomicU8::new(ACCOUNT_FETCH_UNCHECKED)),
         }
     }
 
@@ -279,18 +290,84 @@ where
     }
 
     /// returns the future that fetches the account data
-    fn get_account_req(&self, address: Address) -> ProviderRequest<eyre::Report> {
+    fn get_account_req(&self, address: Address) -> ProviderRequest<Report> {
         trace!(target: "backendhandler", "preparing account request, address={:?}", address);
+
         let provider = self.provider.clone();
         let block_id = self.block_id.unwrap_or_default();
+        let mode = Arc::clone(&self.account_fetch_mode);
         let fut = Box::pin(async move {
-            let balance = provider.get_balance(address).block_id(block_id).into_future();
-            let nonce = provider.get_transaction_count(address).block_id(block_id).into_future();
-            let code = provider.get_code_at(address).block_id(block_id).into_future();
-            let resp = tokio::try_join!(balance, nonce, code).map_err(Into::into);
-            (resp, address)
+            let initial_mode = mode.load(Ordering::Relaxed);
+            match initial_mode {
+                ACCOUNT_FETCH_UNCHECKED => {
+                    let acc_info_fut =
+                        provider.get_account_info(address).block_id(block_id).into_future();
+                    let balance_fut =
+                        provider.get_balance(address).block_id(block_id).into_future();
+                    let nonce_fut =
+                        provider.get_transaction_count(address).block_id(block_id).into_future();
+                    let code_fut = provider.get_code_at(address).block_id(block_id).into_future();
+                    let triple_fut = futures::future::try_join3(balance_fut, nonce_fut, code_fut);
+                    pin_mut!(acc_info_fut, triple_fut);
+                    select! {
+                        acc_info = &mut acc_info_fut => {
+                            match acc_info {
+                                Ok(info) => {
+                                    mode.store(ACCOUNT_FETCH_SUPPORTS_ACC_INFO, Ordering::Relaxed);
+                                    Ok((info.balance, info.nonce, info.code))
+                                }
+                                Err(_) => {
+                                    mode.store(ACCOUNT_FETCH_SEPARATE_REQUESTS, Ordering::Relaxed);
+                                    triple_fut.await
+                                        .map_err(|e| Report::new(e).wrap_err("Failed to fetch account data"))
+                                }
+                            }
+                        }
+                        triple = &mut triple_fut => {
+                            match triple {
+                                Ok((balance, nonce, code)) => {
+                                    mode.store(ACCOUNT_FETCH_SEPARATE_REQUESTS, Ordering::Relaxed);
+                                    Ok((balance, nonce, code))
+                                }
+                                Err(e) => Err(Report::new(e).wrap_err("Failed to fetch account data"))
+                            }
+                        }
+                    }
+                }
+
+                ACCOUNT_FETCH_SUPPORTS_ACC_INFO => provider
+                    .get_account_info(address)
+                    .block_id(block_id)
+                    .into_future()
+                    .await
+                    .map(|info| (info.balance, info.nonce, info.code))
+                    .map_err(|e| Report::new(e).wrap_err("Failed to fetch account info")),
+
+                ACCOUNT_FETCH_SEPARATE_REQUESTS => {
+                    let balance_fut =
+                        provider.get_balance(address).block_id(block_id).into_future();
+
+                    let nonce_fut =
+                        provider.get_transaction_count(address).block_id(block_id).into_future();
+
+                    let code_fut = provider.get_code_at(address).block_id(block_id).into_future();
+
+                    futures::future::try_join3(balance_fut, nonce_fut, code_fut)
+                        .await
+                        .map(|(balance, nonce, code)| (balance, nonce, code))
+                        .map_err(|e| {
+                            Report::new(e).wrap_err("Failed to fetch account data separately")
+                        })
+                }
+
+                _ => unreachable!("Invalid account fetch mode"),
+            }
         });
-        ProviderRequest::Account(fut)
+
+        ProviderRequest::Account(Box::pin(async move {
+            let result = fut.await;
+            (result, address)
+        }))
     }
 
     /// process a request for an account
@@ -301,7 +378,8 @@ where
             }
             Entry::Vacant(entry) => {
                 entry.insert(vec![listener]);
-                self.pending_requests.push(self.get_account_req(address));
+                let account_req = self.get_account_req(address);
+                self.pending_requests.push(account_req);
             }
         }
     }
