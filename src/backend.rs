@@ -10,9 +10,10 @@ use alloy_provider::{
     Provider,
 };
 use alloy_rpc_types::BlockId;
-use eyre::WrapErr;
+use eyre::{Report, WrapErr};
 use futures::{
     channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
+    pin_mut,
     stream::Stream,
     task::{Context, Poll},
     Future, FutureExt,
@@ -37,6 +38,7 @@ use std::{
         Arc,
     },
 };
+use tokio::select;
 
 /// Logged when an error is indicative that the user is trying to fork from a non-archive node.
 pub const NON_ARCHIVE_NODE_WARNING: &str = "\
@@ -288,26 +290,27 @@ where
     }
 
     /// returns the future that fetches the account data
-    fn get_account_req(&self, address: Address) -> ProviderRequest<eyre::Report> {
+    fn get_account_req(&self, address: Address) -> ProviderRequest<Report> {
         trace!(target: "backendhandler", "preparing account request, address={:?}", address);
 
         let provider = self.provider.clone();
         let block_id = self.block_id.unwrap_or_default();
         let mode = Arc::clone(&self.account_fetch_mode);
-
         let fut = Box::pin(async move {
             let initial_mode = mode.load(Ordering::Relaxed);
             match initial_mode {
                 ACCOUNT_FETCH_UNCHECKED => {
-                    let acc_info_fut = provider.get_account_info(address).block_id(block_id);
+                    let acc_info_fut =
+                        provider.get_account_info(address).block_id(block_id).into_future();
                     let balance_fut =
                         provider.get_balance(address).block_id(block_id).into_future();
                     let nonce_fut =
                         provider.get_transaction_count(address).block_id(block_id).into_future();
                     let code_fut = provider.get_code_at(address).block_id(block_id).into_future();
-
-                    tokio::select! {
-                        acc_info = acc_info_fut => {
+                    let triple_fut = futures::future::try_join3(balance_fut, nonce_fut, code_fut);
+                    pin_mut!(acc_info_fut, triple_fut);
+                    select! {
+                        acc_info = &mut acc_info_fut => {
                             match acc_info {
                                 Ok(info) => {
                                     mode.store(ACCOUNT_FETCH_SUPPORTS_ACC_INFO, Ordering::Relaxed);
@@ -315,17 +318,18 @@ where
                                 }
                                 Err(_) => {
                                     mode.store(ACCOUNT_FETCH_SEPARATE_REQUESTS, Ordering::Relaxed);
-                                    tokio::try_join!(balance_fut, nonce_fut, code_fut).map_err(Into::into)
+                                    triple_fut.await
+                                        .map_err(|e| Report::new(e).wrap_err("Failed to fetch account data"))
                                 }
                             }
                         }
-                        triple = async { tokio::try_join!(balance_fut, nonce_fut, code_fut) } => {
+                        triple = &mut triple_fut => {
                             match triple {
                                 Ok((balance, nonce, code)) => {
                                     mode.store(ACCOUNT_FETCH_SEPARATE_REQUESTS, Ordering::Relaxed);
                                     Ok((balance, nonce, code))
                                 }
-                                Err(err) => Err(err.into())
+                                Err(e) => Err(Report::new(e).wrap_err("Failed to fetch account data"))
                             }
                         }
                     }
@@ -334,18 +338,26 @@ where
                 ACCOUNT_FETCH_SUPPORTS_ACC_INFO => provider
                     .get_account_info(address)
                     .block_id(block_id)
+                    .into_future()
                     .await
                     .map(|info| (info.balance, info.nonce, info.code))
-                    .map_err(Into::into),
+                    .map_err(|e| Report::new(e).wrap_err("Failed to fetch account info")),
 
                 ACCOUNT_FETCH_SEPARATE_REQUESTS => {
-                    let (balance, nonce, code) = tokio::try_join!(
-                        provider.get_balance(address).block_id(block_id),
-                        provider.get_transaction_count(address).block_id(block_id),
-                        provider.get_code_at(address).block_id(block_id)
-                    )
-                    .map_err(Into::into)?;
-                    Ok((balance, nonce, code))
+                    let balance_fut =
+                        provider.get_balance(address).block_id(block_id).into_future();
+
+                    let nonce_fut =
+                        provider.get_transaction_count(address).block_id(block_id).into_future();
+
+                    let code_fut = provider.get_code_at(address).block_id(block_id).into_future();
+
+                    futures::future::try_join3(balance_fut, nonce_fut, code_fut)
+                        .await
+                        .map(|(balance, nonce, code)| (balance, nonce, code))
+                        .map_err(|e| {
+                            Report::new(e).wrap_err("Failed to fetch account data separately")
+                        })
                 }
 
                 _ => unreachable!("Invalid account fetch mode"),
