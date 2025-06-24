@@ -1,14 +1,10 @@
 //! Cache related abstraction
 
-use alloy_consensus::BlockHeader;
 use alloy_primitives::{Address, B256, U256};
-use alloy_provider::network::TransactionResponse;
 use parking_lot::RwLock;
 use revm::{
     context::BlockEnv,
-    context_interface::block::BlobExcessGasAndPrice,
     primitives::{
-        eip4844::BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE,
         map::{AddressHashMap, HashMap},
         KECCAK_EMPTY,
     },
@@ -142,28 +138,6 @@ impl BlockchainDbMeta {
             .unwrap_or(url);
 
         Self { block_env, hosts: BTreeSet::from([host]) }
-    }
-
-    /// Sets the [BlockEnv] of this instance using the provided [alloy_rpc_types::Block]
-    pub fn with_block<T: TransactionResponse, H: BlockHeader>(
-        mut self,
-        block: &alloy_rpc_types::Block<T, H>,
-    ) -> Self {
-        self.block_env = BlockEnv {
-            number: U256::from(block.header.number()),
-            beneficiary: block.header.beneficiary(),
-            timestamp: U256::from(block.header.timestamp()),
-            difficulty: U256::from(block.header.difficulty()),
-            basefee: block.header.base_fee_per_gas().unwrap_or_default(),
-            gas_limit: block.header.gas_limit(),
-            prevrandao: block.header.mix_hash(),
-            blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(
-                block.header.excess_blob_gas().unwrap_or_default(),
-                BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE,
-            )),
-        };
-
-        self
     }
 
     /// Infers the host from the provided url and adds it to the set of hosts
