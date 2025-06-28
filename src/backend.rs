@@ -1009,13 +1009,11 @@ mod tests {
                     Some(acc) => {
                         assert_eq!(
                             acc.nonce, new_acc.nonce,
-                            "The nonce was not changed in instance of index {}",
-                            idx
+                            "The nonce was not changed in instance of index {idx}"
                         );
                         assert_eq!(
                             acc.balance, new_acc.balance,
-                            "The balance was not changed in instance of index {}",
-                            idx
+                            "The balance was not changed in instance of index {idx}"
                         );
 
                         // comparing with db
@@ -1026,13 +1024,11 @@ mod tests {
 
                         assert_eq!(
                             db_address.nonce, new_acc.nonce,
-                            "The nonce was not changed in instance of index {}",
-                            idx
+                            "The nonce was not changed in instance of index {idx}"
                         );
                         assert_eq!(
                             db_address.balance, new_acc.balance,
-                            "The balance was not changed in instance of index {}",
-                            idx
+                            "The balance was not changed in instance of index {idx}"
                         );
                     }
                     None => panic!("Account not found"),
@@ -1078,7 +1074,7 @@ mod tests {
                             Ok(stg_db) => {
                                 assert_eq!(
                                     stg_db, *value,
-                                    "Storage in slot number {} in address {} do not have the same value", index, address
+                                    "Storage in slot number {index} in address {address} do not have the same value"
                                 );
 
                                 let db_result = {
@@ -1089,12 +1085,12 @@ mod tests {
 
                                 assert_eq!(
                                     stg_db, db_result,
-                                    "Storage in slot number {} in address {} do not have the same value", index, address
+                                    "Storage in slot number {index} in address {address} do not have the same value"
                                 )
                             }
 
                             Err(err) => {
-                                panic!("There was a database error: {}", err)
+                                panic!("There was a database error: {err}")
                             }
                         }
                     }
@@ -1139,8 +1135,7 @@ mod tests {
                         assert_eq!(
                             hash,
                             *block_hash_data.get(&key).unwrap(),
-                            "The hash in block {} did not match",
-                            key
+                            "The hash in block {key} did not match"
                         );
 
                         let db_result = {
@@ -1148,9 +1143,9 @@ mod tests {
                             *hashes.get(&key).unwrap()
                         };
 
-                        assert_eq!(hash, db_result, "The hash in block {} did not match", key);
+                        assert_eq!(hash, db_result, "The hash in block {key} did not match");
                     }
-                    Err(err) => panic!("Hash not found, error: {}", err),
+                    Err(err) => panic!("Hash not found, error: {err}"),
                 }
             }
         });
@@ -1217,7 +1212,7 @@ mod tests {
                             Ok(stg_db) => {
                                 assert_eq!(
                                     stg_db, *value,
-                                    "Storage in slot number {} in address {} doesn't have the same value", index, address
+                                    "Storage in slot number {index} in address {address} doesn't have the same value"
                                 );
 
                                 let db_result = {
@@ -1228,12 +1223,12 @@ mod tests {
 
                                 assert_eq!(
                                     stg_db, db_result,
-                                    "Storage in slot number {} in address {} doesn't have the same value", index, address
+                                    "Storage in slot number {index} in address {address} doesn't have the same value"
                                 );
                             }
 
                             Err(err) => {
-                                panic!("There was a database error: {}", err)
+                                panic!("There was a database error: {err}")
                             }
                         }
                     }
@@ -1276,8 +1271,7 @@ mod tests {
 
                         assert_eq!(
                             result_storage, *value,
-                            "Storage in slot number {} in address {} doesn't have the same value",
-                            index, address
+                            "Storage in slot number {index} in address {address} doesn't have the same value"
                         );
                     }
                 }
