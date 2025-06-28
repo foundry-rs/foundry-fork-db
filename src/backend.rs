@@ -10,7 +10,7 @@ use alloy_provider::{
     Provider,
 };
 use alloy_rpc_types::BlockId;
-use eyre::{Report, WrapErr};
+use eyre::WrapErr;
 use futures::{
     channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
     pin_mut,
@@ -67,9 +67,12 @@ type AddressData = AddressHashMap<AccountInfo>;
 type StorageData = AddressHashMap<StorageInfo>;
 type BlockHashData = HashMap<U256, B256>;
 
-/// Constants for account fetching modes
+/// States for tracking which account endpoints should be used when account info
 const ACCOUNT_FETCH_UNCHECKED: u8 = 0;
+/// Endpoints supports the non standard eth_getAccountInfo which is more efficient than sending 3
+/// separate requests
 const ACCOUNT_FETCH_SUPPORTS_ACC_INFO: u8 = 1;
+/// Use regular individual getCode, getNonce, getBalance calls
 const ACCOUNT_FETCH_SEPARATE_REQUESTS: u8 = 2;
 
 struct AnyRequestFuture<T, Err> {
@@ -290,18 +293,22 @@ where
     }
 
     /// returns the future that fetches the account data
-    fn get_account_req(&self, address: Address) -> ProviderRequest<Report> {
+    fn get_account_req(&self, address: Address) -> ProviderRequest<eyre::Report> {
         trace!(target: "backendhandler", "preparing account request, address={:?}", address);
 
         let provider = self.provider.clone();
         let block_id = self.block_id.unwrap_or_default();
         let mode = Arc::clone(&self.account_fetch_mode);
         let fut = Box::pin(async move {
+            // depending on the tracked mode we can dispatch requests.
             let initial_mode = mode.load(Ordering::Relaxed);
             match initial_mode {
                 ACCOUNT_FETCH_UNCHECKED => {
+                    // single request for accountinfo object
                     let acc_info_fut =
                         provider.get_account_info(address).block_id(block_id).into_future();
+
+                    // tri request for account info
                     let balance_fut =
                         provider.get_balance(address).block_id(block_id).into_future();
                     let nonce_fut =
@@ -309,17 +316,19 @@ where
                     let code_fut = provider.get_code_at(address).block_id(block_id).into_future();
                     let triple_fut = futures::future::try_join3(balance_fut, nonce_fut, code_fut);
                     pin_mut!(acc_info_fut, triple_fut);
+
                     select! {
                         acc_info = &mut acc_info_fut => {
                             match acc_info {
                                 Ok(info) => {
+                                 trace!(target: "backendhandler", "endpoint supports eth_getAccountInfo");
                                     mode.store(ACCOUNT_FETCH_SUPPORTS_ACC_INFO, Ordering::Relaxed);
                                     Ok((info.balance, info.nonce, info.code))
                                 }
-                                Err(_) => {
+                                Err(err) => {
+                                    trace!(target: "backendhandler", ?err, "failed initial eth_getAccountInfo call");
                                     mode.store(ACCOUNT_FETCH_SEPARATE_REQUESTS, Ordering::Relaxed);
-                                    triple_fut.await
-                                        .map_err(|e| Report::new(e).wrap_err("Failed to fetch account data"))
+                                    Ok(triple_fut.await?)
                                 }
                             }
                         }
@@ -329,35 +338,47 @@ where
                                     mode.store(ACCOUNT_FETCH_SEPARATE_REQUESTS, Ordering::Relaxed);
                                     Ok((balance, nonce, code))
                                 }
-                                Err(e) => Err(Report::new(e).wrap_err("Failed to fetch account data"))
+                                Err(err) => Err(err.into())
                             }
                         }
                     }
                 }
 
-                ACCOUNT_FETCH_SUPPORTS_ACC_INFO => provider
-                    .get_account_info(address)
-                    .block_id(block_id)
-                    .into_future()
-                    .await
-                    .map(|info| (info.balance, info.nonce, info.code))
-                    .map_err(|e| Report::new(e).wrap_err("Failed to fetch account info")),
+                ACCOUNT_FETCH_SUPPORTS_ACC_INFO => {
+                    let mut res = provider
+                        .get_account_info(address)
+                        .block_id(block_id)
+                        .into_future()
+                        .await
+                        .map(|info| (info.balance, info.nonce, info.code));
+
+                    // it's possible that the configured endpoint load balances requests to multiple
+                    // instances and not all support that endpoint so we should reset here
+                    if res.is_err() {
+                        mode.store(ACCOUNT_FETCH_SEPARATE_REQUESTS, Ordering::Relaxed);
+
+                        let balance_fut =
+                            provider.get_balance(address).block_id(block_id).into_future();
+                        let nonce_fut = provider
+                            .get_transaction_count(address)
+                            .block_id(block_id)
+                            .into_future();
+                        let code_fut =
+                            provider.get_code_at(address).block_id(block_id).into_future();
+                        res = futures::future::try_join3(balance_fut, nonce_fut, code_fut).await;
+                    }
+
+                    Ok(res?)
+                }
 
                 ACCOUNT_FETCH_SEPARATE_REQUESTS => {
                     let balance_fut =
                         provider.get_balance(address).block_id(block_id).into_future();
-
                     let nonce_fut =
                         provider.get_transaction_count(address).block_id(block_id).into_future();
-
                     let code_fut = provider.get_code_at(address).block_id(block_id).into_future();
 
-                    futures::future::try_join3(balance_fut, nonce_fut, code_fut)
-                        .await
-                        .map(|(balance, nonce, code)| (balance, nonce, code))
-                        .map_err(|e| {
-                            Report::new(e).wrap_err("Failed to fetch account data separately")
-                        })
+                    Ok(futures::future::try_join3(balance_fut, nonce_fut, code_fut).await?)
                 }
 
                 _ => unreachable!("Invalid account fetch mode"),
