@@ -399,8 +399,7 @@ where
             }
             Entry::Vacant(entry) => {
                 entry.insert(vec![listener]);
-                let account_req = self.get_account_req(address);
-                self.pending_requests.push(account_req);
+                self.pending_requests.push(self.get_account_req(address));
             }
         }
     }
