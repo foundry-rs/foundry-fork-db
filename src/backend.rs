@@ -299,7 +299,7 @@ where
         let provider = self.provider.clone();
         let block_id = self.block_id.unwrap_or_default();
         let mode = Arc::clone(&self.account_fetch_mode);
-        let fut = Box::pin(async move {
+        let fut = async move {
             // depending on the tracked mode we can dispatch requests.
             let initial_mode = mode.load(Ordering::Relaxed);
             match initial_mode {
@@ -383,7 +383,7 @@ where
 
                 _ => unreachable!("Invalid account fetch mode"),
             }
-        });
+        };
 
         ProviderRequest::Account(Box::pin(async move {
             let result = fut.await;
