@@ -13,6 +13,7 @@ use alloy_rpc_types::BlockId;
 use eyre::WrapErr;
 use futures::{
     channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
+    pin_mut,
     stream::Stream,
     task::{Context, Poll},
     Future, FutureExt,
@@ -32,10 +33,12 @@ use std::{
     path::Path,
     pin::Pin,
     sync::{
+        atomic::{AtomicU8, Ordering},
         mpsc::{channel as oneshot_channel, Sender as OneshotSender},
         Arc,
     },
 };
+use tokio::select;
 
 /// Logged when an error is indicative that the user is trying to fork from a non-archive node.
 pub const NON_ARCHIVE_NODE_WARNING: &str = "\
@@ -63,6 +66,14 @@ type TransactionSender = OneshotSender<DatabaseResult<AnyRpcTransaction>>;
 type AddressData = AddressHashMap<AccountInfo>;
 type StorageData = AddressHashMap<StorageInfo>;
 type BlockHashData = HashMap<U256, B256>;
+
+/// States for tracking which account endpoints should be used when account info
+const ACCOUNT_FETCH_UNCHECKED: u8 = 0;
+/// Endpoints supports the non standard eth_getAccountInfo which is more efficient than sending 3
+/// separate requests
+const ACCOUNT_FETCH_SUPPORTS_ACC_INFO: u8 = 1;
+/// Use regular individual getCode, getNonce, getBalance calls
+const ACCOUNT_FETCH_SEPARATE_REQUESTS: u8 = 2;
 
 struct AnyRequestFuture<T, Err> {
     sender: OneshotSender<Result<T, Err>>,
@@ -163,6 +174,8 @@ pub struct BackendHandler<P> {
     /// The block to fetch data from.
     // This is an `Option` so that we can have less code churn in the functions below
     block_id: Option<BlockId>,
+    /// The mode for fetching account data
+    account_fetch_mode: Arc<AtomicU8>,
 }
 
 impl<P> BackendHandler<P>
@@ -185,6 +198,7 @@ where
             queued_requests: Default::default(),
             incoming: rx,
             block_id,
+            account_fetch_mode: Arc::new(AtomicU8::new(ACCOUNT_FETCH_UNCHECKED)),
         }
     }
 
@@ -281,16 +295,100 @@ where
     /// returns the future that fetches the account data
     fn get_account_req(&self, address: Address) -> ProviderRequest<eyre::Report> {
         trace!(target: "backendhandler", "preparing account request, address={:?}", address);
+
         let provider = self.provider.clone();
         let block_id = self.block_id.unwrap_or_default();
-        let fut = Box::pin(async move {
-            let balance = provider.get_balance(address).block_id(block_id).into_future();
-            let nonce = provider.get_transaction_count(address).block_id(block_id).into_future();
-            let code = provider.get_code_at(address).block_id(block_id).into_future();
-            let resp = tokio::try_join!(balance, nonce, code).map_err(Into::into);
-            (resp, address)
-        });
-        ProviderRequest::Account(fut)
+        let mode = Arc::clone(&self.account_fetch_mode);
+        let fut = async move {
+            // depending on the tracked mode we can dispatch requests.
+            let initial_mode = mode.load(Ordering::Relaxed);
+            match initial_mode {
+                ACCOUNT_FETCH_UNCHECKED => {
+                    // single request for accountinfo object
+                    let acc_info_fut =
+                        provider.get_account_info(address).block_id(block_id).into_future();
+
+                    // tri request for account info
+                    let balance_fut =
+                        provider.get_balance(address).block_id(block_id).into_future();
+                    let nonce_fut =
+                        provider.get_transaction_count(address).block_id(block_id).into_future();
+                    let code_fut = provider.get_code_at(address).block_id(block_id).into_future();
+                    let triple_fut = futures::future::try_join3(balance_fut, nonce_fut, code_fut);
+                    pin_mut!(acc_info_fut, triple_fut);
+
+                    select! {
+                        acc_info = &mut acc_info_fut => {
+                            match acc_info {
+                                Ok(info) => {
+                                 trace!(target: "backendhandler", "endpoint supports eth_getAccountInfo");
+                                    mode.store(ACCOUNT_FETCH_SUPPORTS_ACC_INFO, Ordering::Relaxed);
+                                    Ok((info.balance, info.nonce, info.code))
+                                }
+                                Err(err) => {
+                                    trace!(target: "backendhandler", ?err, "failed initial eth_getAccountInfo call");
+                                    mode.store(ACCOUNT_FETCH_SEPARATE_REQUESTS, Ordering::Relaxed);
+                                    Ok(triple_fut.await?)
+                                }
+                            }
+                        }
+                        triple = &mut triple_fut => {
+                            match triple {
+                                Ok((balance, nonce, code)) => {
+                                    mode.store(ACCOUNT_FETCH_SEPARATE_REQUESTS, Ordering::Relaxed);
+                                    Ok((balance, nonce, code))
+                                }
+                                Err(err) => Err(err.into())
+                            }
+                        }
+                    }
+                }
+
+                ACCOUNT_FETCH_SUPPORTS_ACC_INFO => {
+                    let mut res = provider
+                        .get_account_info(address)
+                        .block_id(block_id)
+                        .into_future()
+                        .await
+                        .map(|info| (info.balance, info.nonce, info.code));
+
+                    // it's possible that the configured endpoint load balances requests to multiple
+                    // instances and not all support that endpoint so we should reset here
+                    if res.is_err() {
+                        mode.store(ACCOUNT_FETCH_SEPARATE_REQUESTS, Ordering::Relaxed);
+
+                        let balance_fut =
+                            provider.get_balance(address).block_id(block_id).into_future();
+                        let nonce_fut = provider
+                            .get_transaction_count(address)
+                            .block_id(block_id)
+                            .into_future();
+                        let code_fut =
+                            provider.get_code_at(address).block_id(block_id).into_future();
+                        res = futures::future::try_join3(balance_fut, nonce_fut, code_fut).await;
+                    }
+
+                    Ok(res?)
+                }
+
+                ACCOUNT_FETCH_SEPARATE_REQUESTS => {
+                    let balance_fut =
+                        provider.get_balance(address).block_id(block_id).into_future();
+                    let nonce_fut =
+                        provider.get_transaction_count(address).block_id(block_id).into_future();
+                    let code_fut = provider.get_code_at(address).block_id(block_id).into_future();
+
+                    Ok(futures::future::try_join3(balance_fut, nonce_fut, code_fut).await?)
+                }
+
+                _ => unreachable!("Invalid account fetch mode"),
+            }
+        };
+
+        ProviderRequest::Account(Box::pin(async move {
+            let result = fut.await;
+            (result, address)
+        }))
     }
 
     /// process a request for an account
@@ -1000,13 +1098,11 @@ mod tests {
                     Some(acc) => {
                         assert_eq!(
                             acc.nonce, new_acc.nonce,
-                            "The nonce was not changed in instance of index {}",
-                            idx
+                            "The nonce was not changed in instance of index {idx}"
                         );
                         assert_eq!(
                             acc.balance, new_acc.balance,
-                            "The balance was not changed in instance of index {}",
-                            idx
+                            "The balance was not changed in instance of index {idx}"
                         );
 
                         // comparing with db
@@ -1017,13 +1113,11 @@ mod tests {
 
                         assert_eq!(
                             db_address.nonce, new_acc.nonce,
-                            "The nonce was not changed in instance of index {}",
-                            idx
+                            "The nonce was not changed in instance of index {idx}"
                         );
                         assert_eq!(
                             db_address.balance, new_acc.balance,
-                            "The balance was not changed in instance of index {}",
-                            idx
+                            "The balance was not changed in instance of index {idx}"
                         );
                     }
                     None => panic!("Account not found"),
@@ -1069,7 +1163,7 @@ mod tests {
                             Ok(stg_db) => {
                                 assert_eq!(
                                     stg_db, *value,
-                                    "Storage in slot number {} in address {} do not have the same value", index, address
+                                    "Storage in slot number {index} in address {address} do not have the same value"
                                 );
 
                                 let db_result = {
@@ -1080,12 +1174,12 @@ mod tests {
 
                                 assert_eq!(
                                     stg_db, db_result,
-                                    "Storage in slot number {} in address {} do not have the same value", index, address
+                                    "Storage in slot number {index} in address {address} do not have the same value"
                                 )
                             }
 
                             Err(err) => {
-                                panic!("There was a database error: {}", err)
+                                panic!("There was a database error: {err}")
                             }
                         }
                     }
@@ -1130,8 +1224,7 @@ mod tests {
                         assert_eq!(
                             hash,
                             *block_hash_data.get(&key).unwrap(),
-                            "The hash in block {} did not match",
-                            key
+                            "The hash in block {key} did not match"
                         );
 
                         let db_result = {
@@ -1139,9 +1232,9 @@ mod tests {
                             *hashes.get(&key).unwrap()
                         };
 
-                        assert_eq!(hash, db_result, "The hash in block {} did not match", key);
+                        assert_eq!(hash, db_result, "The hash in block {key} did not match");
                     }
-                    Err(err) => panic!("Hash not found, error: {}", err),
+                    Err(err) => panic!("Hash not found, error: {err}"),
                 }
             }
         });
@@ -1208,7 +1301,7 @@ mod tests {
                             Ok(stg_db) => {
                                 assert_eq!(
                                     stg_db, *value,
-                                    "Storage in slot number {} in address {} doesn't have the same value", index, address
+                                    "Storage in slot number {index} in address {address} doesn't have the same value"
                                 );
 
                                 let db_result = {
@@ -1219,12 +1312,12 @@ mod tests {
 
                                 assert_eq!(
                                     stg_db, db_result,
-                                    "Storage in slot number {} in address {} doesn't have the same value", index, address
+                                    "Storage in slot number {index} in address {address} doesn't have the same value"
                                 );
                             }
 
                             Err(err) => {
-                                panic!("There was a database error: {}", err)
+                                panic!("There was a database error: {err}")
                             }
                         }
                     }
@@ -1267,8 +1360,7 @@ mod tests {
 
                         assert_eq!(
                             result_storage, *value,
-                            "Storage in slot number {} in address {} doesn't have the same value",
-                            index, address
+                            "Storage in slot number {index} in address {address} doesn't have the same value"
                         );
                     }
                 }
