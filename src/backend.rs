@@ -1012,6 +1012,15 @@ mod tests {
     const ENDPOINT: Option<&str> = option_env!("ETH_RPC_URL");
 
     #[tokio::test(flavor = "multi_thread")]
+    async fn test_builder() {
+        let Some(endpoint) = ENDPOINT else { return };
+        let provider = get_http_provider(endpoint);
+
+        let any_rpc_block = provider.get_block(BlockId::latest()).hashes().await.unwrap().unwrap();
+        let _meta = BlockchainDbMeta::default().with_block(1, &any_rpc_block.inner);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
     async fn shared_backend() {
         let Some(endpoint) = ENDPOINT else { return };
 
