@@ -370,6 +370,7 @@ impl JsonBlockCacheDB {
             warn!(target: "cache", ?err, ?path, "Failed to deserialize cache data");
             err
         })?;
+        trace!(target: "cache", ?path, "read json cache");
         Ok(Self { cache_path: Some(path), data })
     }
 
