@@ -1,5 +1,7 @@
 //! Cache related abstraction
+
 use alloy_consensus::BlockHeader;
+use alloy_hardforks::EthereumHardfork;
 use alloy_primitives::{Address, B256, U256};
 use alloy_provider::network::TransactionResponse;
 use parking_lot::RwLock;
@@ -7,6 +9,7 @@ use revm::{
     context::BlockEnv,
     context_interface::block::BlobExcessGasAndPrice,
     primitives::{
+        eip4844::{BLOB_BASE_FEE_UPDATE_FRACTION_CANCUN, BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE},
         map::{AddressHashMap, HashMap},
         KECCAK_EMPTY,
     },
@@ -145,19 +148,27 @@ impl BlockchainDbMeta {
     /// Sets the [BlockEnv] of this instance using the provided [alloy_rpc_types::Block]
     pub fn with_block<T: TransactionResponse, H: BlockHeader>(
         mut self,
+        chain_id: u64,
         block: &alloy_rpc_types::Block<T, H>,
     ) -> Self {
+        let blob_base_fee_update_fraction =
+            match EthereumHardfork::from_chain_id_and_timestamp(chain_id, block.header.timestamp())
+            {
+                Some(EthereumHardfork::Cancun) => BLOB_BASE_FEE_UPDATE_FRACTION_CANCUN,
+                _ => BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE,
+            };
+
         self.block_env = BlockEnv {
-            number: block.header.number(),
+            number: U256::from(block.header.number()),
             beneficiary: block.header.beneficiary(),
-            timestamp: block.header.timestamp(),
+            timestamp: U256::from(block.header.timestamp()),
             difficulty: U256::from(block.header.difficulty()),
             basefee: block.header.base_fee_per_gas().unwrap_or_default(),
             gas_limit: block.header.gas_limit(),
             prevrandao: block.header.mix_hash(),
             blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(
                 block.header.excess_blob_gas().unwrap_or_default(),
-                false,
+                blob_base_fee_update_fraction,
             )),
         };
 

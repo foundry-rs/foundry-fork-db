@@ -1017,7 +1017,7 @@ mod tests {
         let provider = get_http_provider(endpoint);
 
         let any_rpc_block = provider.get_block(BlockId::latest()).hashes().await.unwrap().unwrap();
-        let _meta = BlockchainDbMeta::default().with_block(&any_rpc_block.inner);
+        let _meta = BlockchainDbMeta::default().with_block(1, &any_rpc_block.inner);
     }
 
     #[tokio::test(flavor = "multi_thread")]
