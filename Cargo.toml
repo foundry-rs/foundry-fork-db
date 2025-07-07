@@ -25,18 +25,19 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-alloy-consensus = { version = "1.0.16", default-features = false }
-alloy-hardforks = { version = "0.2.11", default-features = false }
+alloy-chains = { version = "0.2", default-features = false }
+alloy-consensus = { version = "1.0.17", default-features = false }
+alloy-hardforks = { version = "0.2.12", default-features = false }
 alloy-primitives = { version = "1.2", features = ["map"] }
-alloy-provider = { version = "1.0.16", default-features = false }
-alloy-rpc-types = { version = "1.0.16", features = ["eth"] }
+alloy-provider = { version = "1.0.17", default-features = false }
+alloy-rpc-types = { version = "1.0.17", features = ["eth"] }
 
 eyre = "0.6"
 futures = "0.3"
 
 parking_lot = "0.12"
 
-revm = { version = "27.0.1", features = ["std", "serde"] }
+revm = { version = "27.0.2", features = ["std", "serde"] }
 
 serde = "1.0"
 serde_json = "1.0"
@@ -48,7 +49,7 @@ tracing = "0.1"
 url = "2"
 
 [dev-dependencies]
-alloy-rpc-client = "1.0.16"
+alloy-rpc-client = "1.0.17"
 tiny_http = "0.12"
 
 # [patch.crates-io]

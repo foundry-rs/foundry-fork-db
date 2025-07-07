@@ -1,5 +1,6 @@
 //! Cache related abstraction
 
+use alloy_chains::Chain;
 use alloy_consensus::BlockHeader;
 use alloy_hardforks::EthereumHardfork;
 use alloy_primitives::{Address, B256, U256};
@@ -148,12 +149,11 @@ impl BlockchainDbMeta {
     /// Sets the [BlockEnv] of this instance using the provided [alloy_rpc_types::Block]
     pub fn with_block<T: TransactionResponse, H: BlockHeader>(
         mut self,
-        chain_id: u64,
+        chain: Chain,
         block: &alloy_rpc_types::Block<T, H>,
     ) -> Self {
         let blob_base_fee_update_fraction =
-            match EthereumHardfork::from_chain_id_and_timestamp(chain_id, block.header.timestamp())
-            {
+            match EthereumHardfork::from_chain_and_timestamp(chain, block.header.timestamp()) {
                 Some(EthereumHardfork::Cancun) => BLOB_BASE_FEE_UPDATE_FRACTION_CANCUN,
                 _ => BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE,
             };
