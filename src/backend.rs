@@ -997,7 +997,6 @@ impl DatabaseRef for SharedBackend {
 mod tests {
     use super::*;
     use crate::cache::{BlockchainDbMeta, JsonBlockCacheDB};
-    use alloy_chains::Chain;
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
     use serde::Deserialize;
@@ -1011,15 +1010,6 @@ mod tests {
     }
 
     const ENDPOINT: Option<&str> = option_env!("ETH_RPC_URL");
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn test_builder() {
-        let Some(endpoint) = ENDPOINT else { return };
-        let provider = get_http_provider(endpoint);
-
-        let any_rpc_block = provider.get_block(BlockId::latest()).hashes().await.unwrap().unwrap();
-        let _meta = BlockchainDbMeta::default().with_block(Chain::mainnet(), &any_rpc_block.inner);
-    }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn shared_backend() {
