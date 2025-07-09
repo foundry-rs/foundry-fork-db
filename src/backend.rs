@@ -997,8 +997,13 @@ impl DatabaseRef for SharedBackend {
 mod tests {
     use super::*;
     use crate::cache::{BlockchainDbMeta, JsonBlockCacheDB};
+    use alloy_consensus::BlockHeader;
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
+    use revm::{
+        context::BlockEnv, context_interface::block::BlobExcessGasAndPrice,
+        primitives::eip4844::BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE,
+    };
     use serde::Deserialize;
     use std::{collections::BTreeSet, fs, path::PathBuf};
     use tiny_http::{Response, Server};
@@ -1010,6 +1015,29 @@ mod tests {
     }
 
     const ENDPOINT: Option<&str> = option_env!("ETH_RPC_URL");
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_builder() {
+        let Some(endpoint) = ENDPOINT else { return };
+        let provider = get_http_provider(endpoint);
+        let block = provider.get_block(BlockId::latest()).hashes().await.unwrap().unwrap();
+
+        let env = BlockchainDbMeta::default().set_block_env(BlockEnv {
+            number: U256::from(block.header.number()),
+            beneficiary: block.header.beneficiary(),
+            timestamp: U256::from(block.header.timestamp()),
+            difficulty: U256::from(block.header.difficulty()),
+            basefee: block.header.base_fee_per_gas().unwrap_or_default(),
+            gas_limit: block.header.gas_limit(),
+            prevrandao: block.header.mix_hash(),
+            blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(
+                block.header.excess_blob_gas().unwrap_or_default(),
+                BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE,
+            )),
+        });
+
+        assert_eq!(env.block_env.number, U256::from(block.header.number()));
+    }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn shared_backend() {

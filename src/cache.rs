@@ -151,8 +151,9 @@ impl BlockchainDbMeta {
     }
 
     /// Sets the [BlockEnv] of this instance
-    pub fn set_block_env(mut self, block_env: revm::context::BlockEnv) {
+    pub fn set_block_env(mut self, block_env: revm::context::BlockEnv) -> Self {
         self.block_env = block_env;
+        self
     }
 }
 

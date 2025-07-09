@@ -46,6 +46,7 @@ tracing = "0.1"
 url = "2"
 
 [dev-dependencies]
+alloy-consensus = { version = "1.0.20", default-features = false }
 alloy-rpc-client = "1.0.20"
 tiny_http = "0.12"
 
