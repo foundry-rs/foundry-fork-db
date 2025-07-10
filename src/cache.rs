@@ -130,6 +130,7 @@ impl BlockchainDb {
 #[derive(Clone, Debug, Default, Eq, Serialize)]
 pub struct BlockchainDbMeta {
     /// The chain of the blockchain of the block environment
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub chain: Option<Chain>,
     /// The block environment
     pub block_env: BlockEnv,
@@ -250,6 +251,7 @@ impl<'de> Deserialize<'de> for BlockchainDbMeta {
         // custom deserialize impl to not break existing cache files
         #[derive(Deserialize)]
         struct Meta {
+            chain: Option<Chain>,
             block_env: BlockEnvBackwardsCompat,
             /// all the hosts used to connect to
             #[serde(alias = "host")]
@@ -263,9 +265,9 @@ impl<'de> Deserialize<'de> for BlockchainDbMeta {
             Single(String),
         }
 
-        let Meta { block_env, hosts } = Meta::deserialize(deserializer)?;
+        let Meta { chain, block_env, hosts } = Meta::deserialize(deserializer)?;
         Ok(Self {
-            chain: None,
+            chain,
             block_env: block_env.inner,
             hosts: match hosts {
                 Hosts::Multi(hosts) => hosts,
