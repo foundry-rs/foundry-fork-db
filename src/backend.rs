@@ -997,12 +997,11 @@ impl DatabaseRef for SharedBackend {
 mod tests {
     use super::*;
     use crate::cache::{BlockchainDbMeta, JsonBlockCacheDB};
-    use alloy_chains::Chain;
     use alloy_consensus::BlockHeader;
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
     use serde::Deserialize;
-    use std::{collections::BTreeSet, fs, path::PathBuf};
+    use std::{fs, path::PathBuf};
     use tiny_http::{Response, Server};
 
     pub fn get_http_provider(endpoint: &str) -> impl Provider<AnyNetwork> + Clone {
@@ -1019,7 +1018,7 @@ mod tests {
         let provider = get_http_provider(endpoint);
 
         let any_rpc_block = provider.get_block(BlockId::latest()).hashes().await.unwrap().unwrap();
-        let meta = BlockchainDbMeta::default().with_block(Chain::mainnet(), &any_rpc_block.inner);
+        let meta = BlockchainDbMeta::default().with_block(&any_rpc_block.inner);
 
         assert_eq!(meta.block_env.number, U256::from(any_rpc_block.header.number()));
     }
@@ -1029,10 +1028,7 @@ mod tests {
         let Some(endpoint) = ENDPOINT else { return };
 
         let provider = get_http_provider(endpoint);
-        let meta = BlockchainDbMeta {
-            block_env: Default::default(),
-            hosts: BTreeSet::from([endpoint.to_string()]),
-        };
+        let meta = BlockchainDbMeta::new(Default::default(), endpoint.to_string());
 
         let db = BlockchainDb::new(meta, None);
         let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
@@ -1080,10 +1076,7 @@ mod tests {
         let Some(endpoint) = ENDPOINT else { return };
 
         let provider = get_http_provider(endpoint);
-        let meta = BlockchainDbMeta {
-            block_env: Default::default(),
-            hosts: BTreeSet::from([endpoint.to_string()]),
-        };
+        let meta = BlockchainDbMeta::new(Default::default(), endpoint.to_string());
 
         let db = BlockchainDb::new(meta, None);
         let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
@@ -1145,10 +1138,7 @@ mod tests {
         let Some(endpoint) = ENDPOINT else { return };
 
         let provider = get_http_provider(endpoint);
-        let meta = BlockchainDbMeta {
-            block_env: Default::default(),
-            hosts: BTreeSet::from([endpoint.to_string()]),
-        };
+        let meta = BlockchainDbMeta::new(Default::default(), endpoint.to_string());
 
         let db = BlockchainDb::new(meta, None);
         let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
@@ -1207,10 +1197,7 @@ mod tests {
         let Some(endpoint) = ENDPOINT else { return };
 
         let provider = get_http_provider(endpoint);
-        let meta = BlockchainDbMeta {
-            block_env: Default::default(),
-            hosts: BTreeSet::from([endpoint.to_string()]),
-        };
+        let meta = BlockchainDbMeta::new(Default::default(), endpoint.to_string());
 
         let db = BlockchainDb::new(meta, None);
         let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
@@ -1259,10 +1246,7 @@ mod tests {
         let Some(endpoint) = ENDPOINT else { return };
 
         let provider = get_http_provider(endpoint);
-        let meta = BlockchainDbMeta {
-            block_env: Default::default(),
-            hosts: BTreeSet::from([endpoint.to_string()]),
-        };
+        let meta = BlockchainDbMeta::new(Default::default(), endpoint.to_string());
 
         // create a temporary file
         fs::copy("test-data/storage.json", "test-data/storage-tmp.json").unwrap();
@@ -1417,10 +1401,7 @@ mod tests {
         });
 
         let provider = get_http_provider(&endpoint);
-        let meta = BlockchainDbMeta {
-            block_env: Default::default(),
-            hosts: BTreeSet::from([endpoint.to_string()]),
-        };
+        let meta = BlockchainDbMeta::new(Default::default(), endpoint.to_string());
 
         let db = BlockchainDb::new(meta, None);
         let provider_inner = provider.clone();
