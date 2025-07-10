@@ -1,5 +1,8 @@
 //! Cache related abstraction
+
+use alloy_chains::Chain;
 use alloy_consensus::BlockHeader;
+use alloy_hardforks::EthereumHardfork;
 use alloy_primitives::{Address, B256, U256};
 use alloy_provider::network::TransactionResponse;
 use parking_lot::RwLock;
@@ -7,6 +10,7 @@ use revm::{
     context::BlockEnv,
     context_interface::block::BlobExcessGasAndPrice,
     primitives::{
+        eip4844::{BLOB_BASE_FEE_UPDATE_FRACTION_CANCUN, BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE},
         map::{AddressHashMap, HashMap},
         KECCAK_EMPTY,
     },
@@ -123,8 +127,11 @@ impl BlockchainDb {
 }
 
 /// relevant identifying markers in the context of [BlockchainDb]
-#[derive(Clone, Debug, Eq, Serialize, Default)]
+#[derive(Clone, Debug, Default, Eq, Serialize)]
 pub struct BlockchainDbMeta {
+    /// The chain of the blockchain of the block environment
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chain: Option<Chain>,
     /// The block environment
     pub block_env: BlockEnv,
     /// All the hosts used to connect to
@@ -139,25 +146,33 @@ impl BlockchainDbMeta {
             .and_then(|url| url.host().map(|host| host.to_string()))
             .unwrap_or(url);
 
-        Self { block_env, hosts: BTreeSet::from([host]) }
+        Self { chain: None, block_env, hosts: BTreeSet::from([host]) }
     }
 
-    /// Sets the [BlockEnv] of this instance using the provided [alloy_rpc_types::Block]
+    /// Sets the [BlockEnv] of this instance using the provided [Chain] and [alloy_rpc_types::Block]
     pub fn with_block<T: TransactionResponse, H: BlockHeader>(
         mut self,
         block: &alloy_rpc_types::Block<T, H>,
     ) -> Self {
+        let blob_base_fee_update_fraction =
+            self.chain.map_or(BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE, |chain| {
+                match EthereumHardfork::from_chain_and_timestamp(chain, block.header.timestamp()) {
+                    Some(EthereumHardfork::Cancun) => BLOB_BASE_FEE_UPDATE_FRACTION_CANCUN,
+                    _ => BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE,
+                }
+            });
+
         self.block_env = BlockEnv {
-            number: block.header.number(),
+            number: U256::from(block.header.number()),
             beneficiary: block.header.beneficiary(),
-            timestamp: block.header.timestamp(),
+            timestamp: U256::from(block.header.timestamp()),
             difficulty: U256::from(block.header.difficulty()),
             basefee: block.header.base_fee_per_gas().unwrap_or_default(),
             gas_limit: block.header.gas_limit(),
             prevrandao: block.header.mix_hash(),
             blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(
                 block.header.excess_blob_gas().unwrap_or_default(),
-                false,
+                blob_base_fee_update_fraction,
             )),
         };
 
@@ -174,9 +189,16 @@ impl BlockchainDbMeta {
         self
     }
 
+    /// Sets the [Chain] of this instance
+    pub fn set_chain(mut self, chain: Chain) -> Self {
+        self.chain = Some(chain);
+        self
+    }
+
     /// Sets the [BlockEnv] of this instance
-    pub fn set_block_env(mut self, block_env: revm::context::BlockEnv) {
+    pub fn set_block_env(mut self, block_env: revm::context::BlockEnv) -> Self {
         self.block_env = block_env;
+        self
     }
 }
 
@@ -229,6 +251,7 @@ impl<'de> Deserialize<'de> for BlockchainDbMeta {
         // custom deserialize impl to not break existing cache files
         #[derive(Deserialize)]
         struct Meta {
+            chain: Option<Chain>,
             block_env: BlockEnvBackwardsCompat,
             /// all the hosts used to connect to
             #[serde(alias = "host")]
@@ -242,8 +265,9 @@ impl<'de> Deserialize<'de> for BlockchainDbMeta {
             Single(String),
         }
 
-        let Meta { block_env, hosts } = Meta::deserialize(deserializer)?;
+        let Meta { chain, block_env, hosts } = Meta::deserialize(deserializer)?;
         Ok(Self {
+            chain,
             block_env: block_env.inner,
             hosts: match hosts {
                 Hosts::Multi(hosts) => hosts,
