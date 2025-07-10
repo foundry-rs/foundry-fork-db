@@ -130,7 +130,7 @@ impl BlockchainDb {
 #[derive(Clone, Debug, Default, Eq, Serialize)]
 pub struct BlockchainDbMeta {
     /// The chain of the blockchain of the block environment
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chain: Option<Chain>,
     /// The block environment
     pub block_env: BlockEnv,
