@@ -127,20 +127,14 @@ impl BlockchainDb {
 }
 
 /// relevant identifying markers in the context of [BlockchainDb]
-#[derive(Clone, Debug, Eq, Serialize)]
+#[derive(Clone, Debug, Default, Eq, Serialize)]
 pub struct BlockchainDbMeta {
     /// The chain of the blockchain of the block environment
-    pub chain: Chain,
+    pub chain: Option<Chain>,
     /// The block environment
     pub block_env: BlockEnv,
     /// All the hosts used to connect to
     pub hosts: BTreeSet<String>,
-}
-
-impl Default for BlockchainDbMeta {
-    fn default() -> Self {
-        Self { chain: Chain::mainnet(), block_env: BlockEnv::default(), hosts: BTreeSet::new() }
-    }
 }
 
 impl BlockchainDbMeta {
@@ -151,7 +145,7 @@ impl BlockchainDbMeta {
             .and_then(|url| url.host().map(|host| host.to_string()))
             .unwrap_or(url);
 
-        Self { chain: Chain::mainnet(), block_env, hosts: BTreeSet::from([host]) }
+        Self { chain: None, block_env, hosts: BTreeSet::from([host]) }
     }
 
     /// Sets the [BlockEnv] of this instance using the provided [Chain] and [alloy_rpc_types::Block]
@@ -159,13 +153,13 @@ impl BlockchainDbMeta {
         mut self,
         block: &alloy_rpc_types::Block<T, H>,
     ) -> Self {
-        let blob_base_fee_update_fraction = match EthereumHardfork::from_chain_and_timestamp(
-            self.chain,
-            block.header.timestamp(),
-        ) {
-            Some(EthereumHardfork::Cancun) => BLOB_BASE_FEE_UPDATE_FRACTION_CANCUN,
-            _ => BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE,
-        };
+        let blob_base_fee_update_fraction =
+            self.chain.map_or(BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE, |chain| {
+                match EthereumHardfork::from_chain_and_timestamp(chain, block.header.timestamp()) {
+                    Some(EthereumHardfork::Cancun) => BLOB_BASE_FEE_UPDATE_FRACTION_CANCUN,
+                    _ => BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE,
+                }
+            });
 
         self.block_env = BlockEnv {
             number: U256::from(block.header.number()),
@@ -196,7 +190,7 @@ impl BlockchainDbMeta {
 
     /// Sets the [Chain] of this instance
     pub fn set_chain(mut self, chain: Chain) -> Self {
-        self.chain = chain;
+        self.chain = Some(chain);
         self
     }
 
@@ -271,7 +265,7 @@ impl<'de> Deserialize<'de> for BlockchainDbMeta {
 
         let Meta { block_env, hosts } = Meta::deserialize(deserializer)?;
         Ok(Self {
-            chain: Chain::mainnet(),
+            chain: None,
             block_env: block_env.inner,
             hosts: match hosts {
                 Hosts::Multi(hosts) => hosts,
