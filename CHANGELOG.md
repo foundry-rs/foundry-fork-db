@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.17.0) - 2025-08-18
+
+### Dependencies
+
+- [deps] Bump revm 28.0.0, msrv 1.88 required for revm ([#57](https://github.com/foundry-rs/foundry-fork-db/issues/57))
+
 ## [0.16.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.16.0) - 2025-07-10
 
 ### Dependencies
@@ -17,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous Tasks
 
+- Release 0.16.0
 - Add trace for successful cache load ([#55](https://github.com/foundry-rs/foundry-fork-db/issues/55))
 - Make clippy happy ([#54](https://github.com/foundry-rs/foundry-fork-db/issues/54))
 
@@ -314,6 +321,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Miscellaneous Tasks
 
 - Release 0.2.0
+
+## [0.2.1](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.2.1) - 2024-08-08
 
 ### Other
 
