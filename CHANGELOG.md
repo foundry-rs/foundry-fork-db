@@ -5,11 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.18.0) - 2025-08-25
+
+### Dependencies
+
+- Update deps ([#58](https://github.com/foundry-rs/foundry-fork-db/issues/58))
+
+### Other
+
+- Add @0xrusowsky ([#60](https://github.com/foundry-rs/foundry-fork-db/issues/60))
+- Update codeowners to improve visibility ([#59](https://github.com/foundry-rs/foundry-fork-db/issues/59))
+
 ## [0.17.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.17.0) - 2025-08-18
 
 ### Dependencies
 
 - [deps] Bump revm 28.0.0, msrv 1.88 required for revm ([#57](https://github.com/foundry-rs/foundry-fork-db/issues/57))
+
+### Miscellaneous Tasks
+
+- Release 0.17.0
 
 ## [0.16.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.16.0) - 2025-07-10
 
