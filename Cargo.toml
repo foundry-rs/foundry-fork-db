@@ -27,7 +27,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 alloy-chains = { version = "0.2", default-features = false, features = ["serde"] }
 alloy-consensus = { version = "1.0.25", default-features = false }
-alloy-hardforks = { version = "0.2.13", default-features = false }
+alloy-hardforks = { version = "0.3.0", default-features = false }
 alloy-primitives = { version = "1.3", features = ["map"] }
 alloy-provider = { version = "1.0.25", default-features = false }
 alloy-rpc-types = { version = "1.0.25", features = ["eth"] }
