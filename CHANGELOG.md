@@ -5,11 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.1](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.18.1) - 2025-08-29
+
+### Other
+
+- Bumps to alloy-hardforks 0.3.0 ([#62](https://github.com/foundry-rs/foundry-fork-db/issues/62))
+
 ## [0.18.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.18.0) - 2025-08-25
 
 ### Dependencies
 
 - Update deps ([#58](https://github.com/foundry-rs/foundry-fork-db/issues/58))
+
+### Miscellaneous Tasks
+
+- Release 0.18.0
 
 ### Other
 
@@ -336,8 +346,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Miscellaneous Tasks
 
 - Release 0.2.0
-
-## [0.2.1](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.2.1) - 2024-08-08
 
 ### Other
 
