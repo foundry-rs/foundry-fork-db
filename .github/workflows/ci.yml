@@ -138,7 +138,6 @@ jobs:
     needs:
       - test
       - doctest
-      - no-std
       - feature-checks
       - clippy
       - docs
