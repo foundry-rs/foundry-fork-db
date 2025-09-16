@@ -35,7 +35,7 @@ jobs:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # master
         with:
-          toolchain: stable ${{ matrix.rust }}
+          toolchain: ${{ matrix.rust }}
       # Only run tests on latest stable and above
       - name: Install cargo-nextest
         if: ${{ matrix.rust != '1.88' }} # MSRV
