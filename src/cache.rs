@@ -529,7 +529,6 @@ mod tests {
     "meta": {
         "cfg_env": {
             "chain_id": 1337,
-            "perf_analyse_created_bytecodes": "Analyse",
             "limit_contract_code_size": 18446744073709551615,
             "memory_limit": 4294967295,
             "disable_block_gas_limit": false,
@@ -559,13 +558,8 @@ mod tests {
                     "bytecode": "0x00",
                     "original_len": 0,
                     "jump_table": {
-                      "order": "bitvec::order::Lsb0",
-                      "head": {
-                        "width": 8,
-                        "index": 0
-                      },
-                      "bits": 1,
-                      "data": [0]
+                        "len": 1,
+                        "table": "0x00"
                     }
                 }
             }
@@ -607,7 +601,6 @@ mod tests {
         "cfg_env": {
             "chain_id": 1,
             "kzg_settings": "Default",
-            "perf_analyse_created_bytecodes": "Analyse",
             "limit_contract_code_size": 18446744073709551615,
             "memory_limit": 134217728,
             "disable_block_gas_limit": false,
@@ -642,13 +635,8 @@ mod tests {
                     "bytecode": "0x00",
                     "original_len": 0,
                     "jump_table": {
-                      "order": "bitvec::order::Lsb0",
-                      "head": {
-                        "width": 8,
-                        "index": 0
-                      },
-                      "bits": 1,
-                      "data": [0]
+                        "len": 1,
+                        "table": "0x00"
                     }
                 }
             }
