@@ -558,8 +558,14 @@ mod tests {
                     "bytecode": "0x00",
                     "original_len": 0,
                     "jump_table": {
-                        "len": 1,
-                        "table": "0x00"
+                      "order": "bitvec::order::Lsb0",
+                      "head": {
+                        "width": 8,
+                        "index": 0
+                      },
+                      "len": 1,
+                      "bits": 1,
+                      "data": [0]
                     }
                 }
             }
@@ -635,8 +641,13 @@ mod tests {
                     "bytecode": "0x00",
                     "original_len": 0,
                     "jump_table": {
-                        "len": 1,
-                        "table": "0x00"
+                      "order": "bitvec::order::Lsb0",
+                      "head": {
+                        "width": 8,
+                        "index": 0
+                      },
+                      "bits": 1,
+                      "data": [0]
                     }
                 }
             }
