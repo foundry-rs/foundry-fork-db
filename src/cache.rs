@@ -529,6 +529,7 @@ mod tests {
     "meta": {
         "cfg_env": {
             "chain_id": 1337,
+            "perf_analyse_created_bytecodes": "Analyse",
             "limit_contract_code_size": 18446744073709551615,
             "memory_limit": 4294967295,
             "disable_block_gas_limit": false,
@@ -606,6 +607,7 @@ mod tests {
         "cfg_env": {
             "chain_id": 1,
             "kzg_settings": "Default",
+            "perf_analyse_created_bytecodes": "Analyse",
             "limit_contract_code_size": 18446744073709551615,
             "memory_limit": 134217728,
             "disable_block_gas_limit": false,
