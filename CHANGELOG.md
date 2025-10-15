@@ -5,7 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.19.0) - 2025-10-15
+
+### Dependencies
+
+- [deps] Bump `revm` to `30.1.1` ([#77](https://github.com/foundry-rs/foundry-fork-db/issues/77))
+- [deps] Bump github/codeql-action from 3 to 4 ([#79](https://github.com/foundry-rs/foundry-fork-db/issues/79))
+- [deps] Bump taiki-e/install-action from 2.62.21 to 2.62.28 ([#78](https://github.com/foundry-rs/foundry-fork-db/issues/78))
+- [deps] Bump taiki-e/install-action from 2.62.14 to 2.62.21 ([#76](https://github.com/foundry-rs/foundry-fork-db/issues/76))
+- [deps] Bump taiki-e/install-action from 2.62.2 to 2.62.13 ([#73](https://github.com/foundry-rs/foundry-fork-db/issues/73))
+- [deps] Bump Swatinem/rust-cache from 2.8.0 to 2.8.1 ([#72](https://github.com/foundry-rs/foundry-fork-db/issues/72))
+- [deps] Bump taiki-e/install-action from 2.61.7 to 2.62.2 ([#71](https://github.com/foundry-rs/foundry-fork-db/issues/71))
+- [`ci`] Pin deps in workflow and add `dependabot` to update them weekly ([#66](https://github.com/foundry-rs/foundry-fork-db/issues/66))
+
+### Miscellaneous Tasks
+
+- Rm `doc_auto_cfg` ([#75](https://github.com/foundry-rs/foundry-fork-db/issues/75))
+- [`ci`] Clean up workflow + harden workflow by setting default permission to read only ([#65](https://github.com/foundry-rs/foundry-fork-db/issues/65))
+
+### Other
+
+- Merge in codeql.yml as mark as requirement for ci-success ([#70](https://github.com/foundry-rs/foundry-fork-db/issues/70))
+- Rescope permissions ([#69](https://github.com/foundry-rs/foundry-fork-db/issues/69))
+- Pin taiki-e/install-action to master, use tool to select ([#68](https://github.com/foundry-rs/foundry-fork-db/issues/68))
+- Add codeql ([#64](https://github.com/foundry-rs/foundry-fork-db/issues/64))
+- Add ci-success ([#63](https://github.com/foundry-rs/foundry-fork-db/issues/63))
+
 ## [0.18.1](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.18.1) - 2025-08-29
+
+### Miscellaneous Tasks
+
+- Release 0.18.1
 
 ### Other
 
