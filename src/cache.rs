@@ -563,7 +563,6 @@ mod tests {
                         "width": 8,
                         "index": 0
                       },
-                      "len": 1,
                       "bits": 1,
                       "data": [0]
                     }
