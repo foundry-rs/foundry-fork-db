@@ -7,7 +7,7 @@ use crate::{
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_provider::{
     network::{AnyNetwork, AnyRpcBlock, AnyRpcTransaction},
-    Provider,
+    DynProvider, Provider,
 };
 use alloy_rpc_types::BlockId;
 use eyre::WrapErr;
@@ -155,8 +155,8 @@ enum BackendRequest {
 /// This handler will remain active as long as it is reachable (request channel still open) and
 /// requests are in progress.
 #[must_use = "futures do nothing unless polled"]
-pub struct BackendHandler<P> {
-    provider: P,
+pub struct BackendHandler {
+    provider: DynProvider<AnyNetwork>,
     /// Stores all the data.
     db: BlockchainDb,
     /// Requests currently in progress
@@ -178,12 +178,9 @@ pub struct BackendHandler<P> {
     account_fetch_mode: Arc<AtomicU8>,
 }
 
-impl<P> BackendHandler<P>
-where
-    P: Provider<AnyNetwork> + Clone + Unpin + 'static,
-{
+impl BackendHandler {
     fn new(
-        provider: P,
+        provider: DynProvider<AnyNetwork>,
         db: BlockchainDb,
         rx: UnboundedReceiver<BackendRequest>,
         block_id: Option<BlockId>,
@@ -474,10 +471,7 @@ where
     }
 }
 
-impl<P> Future for BackendHandler<P>
-where
-    P: Provider<AnyNetwork> + Clone + Unpin + 'static,
-{
+impl Future for BackendHandler {
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -737,12 +731,11 @@ impl SharedBackend {
     ///
     /// The spawned `BackendHandler` finishes once the last `SharedBackend` connected to it is
     /// dropped.
-    ///
-    /// NOTE: this should be called with `Arc<Provider>`
-    pub async fn spawn_backend<P>(provider: P, db: BlockchainDb, pin_block: Option<BlockId>) -> Self
-    where
-        P: Provider<AnyNetwork> + Unpin + 'static + Clone,
-    {
+    pub async fn spawn_backend<P: Provider<AnyNetwork> + 'static>(
+        provider: P,
+        db: BlockchainDb,
+        pin_block: Option<BlockId>,
+    ) -> Self {
         let (shared, handler) = Self::new(provider, db, pin_block);
         // spawn the provider handler to a task
         trace!(target: "backendhandler", "spawning Backendhandler task");
@@ -752,14 +745,11 @@ impl SharedBackend {
 
     /// Same as `Self::spawn_backend` but spawns the `BackendHandler` on a separate `std::thread` in
     /// its own `tokio::Runtime`
-    pub fn spawn_backend_thread<P>(
+    pub fn spawn_backend_thread<P: Provider<AnyNetwork> + 'static>(
         provider: P,
         db: BlockchainDb,
         pin_block: Option<BlockId>,
-    ) -> Self
-    where
-        P: Provider<AnyNetwork> + Unpin + 'static + Clone,
-    {
+    ) -> Self {
         let (shared, handler) = Self::new(provider, db, pin_block);
 
         // spawn a light-weight thread with a thread-local async runtime just for
@@ -781,17 +771,14 @@ impl SharedBackend {
     }
 
     /// Returns a new `SharedBackend` and the `BackendHandler`
-    pub fn new<P>(
+    pub fn new<P: Provider<AnyNetwork> + 'static>(
         provider: P,
         db: BlockchainDb,
         pin_block: Option<BlockId>,
-    ) -> (Self, BackendHandler<P>)
-    where
-        P: Provider<AnyNetwork> + Unpin + 'static + Clone,
-    {
+    ) -> (Self, BackendHandler) {
         let (backend, backend_rx) = unbounded();
         let cache = Arc::new(FlushJsonBlockCacheDB(Arc::clone(db.cache())));
-        let handler = BackendHandler::new(provider, db, backend_rx, pin_block);
+        let handler = BackendHandler::new(provider.erased(), db, backend_rx, pin_block);
         (Self { backend, cache, blocking_mode: Default::default() }, handler)
     }
 
