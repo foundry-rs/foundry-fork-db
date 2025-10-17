@@ -957,12 +957,11 @@ impl DatabaseRef for SharedBackend {
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
         trace!(target: "sharedbackend", %address, "request basic");
-        self.do_get_basic(address).map_err(|err| {
+        self.do_get_basic(address).inspect_err(|err| {
             error!(target: "sharedbackend", %err, %address, "Failed to send/recv `basic`");
             if err.is_possibly_non_archive_node_error() {
                 error!(target: "sharedbackend", "{NON_ARCHIVE_NODE_WARNING}");
             }
-            err
         })
     }
 
@@ -972,23 +971,21 @@ impl DatabaseRef for SharedBackend {
 
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
         trace!(target: "sharedbackend", "request storage {:?} at {:?}", address, index);
-        self.do_get_storage(address, index).map_err(|err| {
+        self.do_get_storage(address, index).inspect_err(|err| {
             error!(target: "sharedbackend", %err, %address, %index, "Failed to send/recv `storage`");
             if err.is_possibly_non_archive_node_error() {
                 error!(target: "sharedbackend", "{NON_ARCHIVE_NODE_WARNING}");
             }
-          err
         })
     }
 
     fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
         trace!(target: "sharedbackend", "request block hash for number {:?}", number);
-        self.do_get_block_hash(number).map_err(|err| {
+        self.do_get_block_hash(number).inspect_err(|err| {
             error!(target: "sharedbackend", %err, %number, "Failed to send/recv `block_hash`");
             if err.is_possibly_non_archive_node_error() {
                 error!(target: "sharedbackend", "{NON_ARCHIVE_NODE_WARNING}");
             }
-            err
         })
     }
 }
