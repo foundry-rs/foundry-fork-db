@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.20.0) - 2025-11-05
+
+### Dependencies
+
+- Bump revm 31 ([#85](https://github.com/foundry-rs/foundry-fork-db/issues/85))
+- [deps] Bump taiki-e/install-action from 2.62.39 to 2.62.45 ([#84](https://github.com/foundry-rs/foundry-fork-db/issues/84))
+- [deps] Bump taiki-e/install-action from 2.62.33 to 2.62.39 ([#83](https://github.com/foundry-rs/foundry-fork-db/issues/83))
+- [deps] Bump taiki-e/install-action from 2.62.28 to 2.62.33 ([#82](https://github.com/foundry-rs/foundry-fork-db/issues/82))
+
+### Features
+
+- Erase provider generic ([#80](https://github.com/foundry-rs/foundry-fork-db/issues/80))
+
+### Miscellaneous Tasks
+
+- Use inspect_err ([#81](https://github.com/foundry-rs/foundry-fork-db/issues/81))
+
 ## [0.19.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.19.0) - 2025-10-15
 
 ### Dependencies
@@ -20,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous Tasks
 
+- Release 0.19.0
 - Rm `doc_auto_cfg` ([#75](https://github.com/foundry-rs/foundry-fork-db/issues/75))
 - [`ci`] Clean up workflow + harden workflow by setting default permission to read only ([#65](https://github.com/foundry-rs/foundry-fork-db/issues/65))
 
