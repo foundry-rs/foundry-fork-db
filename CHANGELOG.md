@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.21.0) - 2025-11-12
+
+### Dependencies
+
+- Bump to revm 33 ([#87](https://github.com/foundry-rs/foundry-fork-db/issues/87))
+- [deps] Bump taiki-e/install-action from 2.62.45 to 2.62.49 ([#86](https://github.com/foundry-rs/foundry-fork-db/issues/86))
+
 ## [0.20.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.20.0) - 2025-11-05
 
 ### Dependencies
@@ -20,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous Tasks
 
+- Release 0.20.0
 - Use inspect_err ([#81](https://github.com/foundry-rs/foundry-fork-db/issues/81))
 
 ## [0.19.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.19.0) - 2025-10-15
@@ -394,6 +402,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Miscellaneous Tasks
 
 - Release 0.2.0
+
+## [0.2.1](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.2.1) - 2024-08-08
 
 ### Other
 
