@@ -532,6 +532,7 @@ impl Future for BackendHandler {
                                 balance,
                                 code: Some(Bytecode::new_raw(code)),
                                 code_hash,
+                                account_id: None,
                             };
                             pin.db.accounts().write().insert(addr, acc.clone());
 
@@ -1073,6 +1074,7 @@ mod tests {
             balance: U256::from(2000),
             code: None,
             code_hash: KECCAK_EMPTY,
+            account_id: None,
         };
         let mut account_data = AddressData::default();
         account_data.insert(address, new_acc.clone());
