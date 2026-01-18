@@ -31,7 +31,7 @@ jobs:
           - rust: "1.88" # MSRV
             flags: "--all-features"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # master
@@ -40,7 +40,7 @@ jobs:
       # Only run tests on latest stable and above
       - name: Install cargo-nextest
         if: ${{ matrix.rust != '1.88' }} # MSRV
-        uses: taiki-e/install-action@0ed4032d5406d133639ce4e858011eb498223338 # master
+        uses: taiki-e/install-action@3522286d40783523f9c7880e33f785905b4c20d0 # master
         with:
           tool: nextest
       - name: build
@@ -56,13 +56,13 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # master
         with:
           toolchain: stable
-      - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
         with:
           cache-on-failure: true
       - run: cargo test --workspace --doc
@@ -74,16 +74,16 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # master
         with:
           toolchain: stable
-      - uses: taiki-e/install-action@0ed4032d5406d133639ce4e858011eb498223338 # master
+      - uses: taiki-e/install-action@3522286d40783523f9c7880e33f785905b4c20d0 # master
         with:
           tool: cargo-hack
-      - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
         with:
           cache-on-failure: true
       - name: cargo hack
@@ -95,14 +95,14 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # master
         with:
           toolchain: nightly
           components: clippy
-      - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
         with:
           cache-on-failure: true
       - run: cargo clippy --workspace --all-targets --all-features
@@ -115,13 +115,13 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # master
         with:
           toolchain: nightly
-      - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
         with:
           cache-on-failure: true
       - run: cargo doc --workspace --all-features --no-deps --document-private-items
@@ -134,7 +134,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # master
@@ -165,7 +165,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
 

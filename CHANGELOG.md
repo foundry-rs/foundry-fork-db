@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.22.0) - 2026-01-16
+
+### Dependencies
+
+- [deps] Bump revm from 33.0.0 to 34.0.0 ([#98](https://github.com/foundry-rs/foundry-fork-db/issues/98))
+- [deps] Bump taiki-e/install-action from 2.65.13 to 2.66.1 ([#97](https://github.com/foundry-rs/foundry-fork-db/issues/97))
+- [deps] Bump taiki-e/install-action from 2.65.7 to 2.65.13 ([#96](https://github.com/foundry-rs/foundry-fork-db/issues/96))
+- [deps] Bump taiki-e/install-action from 2.65.1 to 2.65.7 ([#95](https://github.com/foundry-rs/foundry-fork-db/issues/95))
+- [deps] Bump taiki-e/install-action from 2.63.3 to 2.65.1 ([#94](https://github.com/foundry-rs/foundry-fork-db/issues/94))
+- [deps] Bump taiki-e/install-action from 2.62.64 to 2.63.3 ([#93](https://github.com/foundry-rs/foundry-fork-db/issues/93))
+- [deps] Bump taiki-e/install-action from 2.62.60 to 2.62.64 ([#92](https://github.com/foundry-rs/foundry-fork-db/issues/92))
+- [deps] Bump Swatinem/rust-cache from 2.8.1 to 2.8.2 ([#90](https://github.com/foundry-rs/foundry-fork-db/issues/90))
+- [deps] Bump actions/checkout from 5 to 6 ([#89](https://github.com/foundry-rs/foundry-fork-db/issues/89))
+- [deps] Bump taiki-e/install-action from 2.62.52 to 2.62.60 ([#91](https://github.com/foundry-rs/foundry-fork-db/issues/91))
+- [deps] Bump taiki-e/install-action from 2.62.49 to 2.62.52 ([#88](https://github.com/foundry-rs/foundry-fork-db/issues/88))
+
+## [0.21.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.21.0) - 2025-11-12
+
+### Dependencies
+
+- Bump to revm 33 ([#87](https://github.com/foundry-rs/foundry-fork-db/issues/87))
+- [deps] Bump taiki-e/install-action from 2.62.45 to 2.62.49 ([#86](https://github.com/foundry-rs/foundry-fork-db/issues/86))
+
+### Miscellaneous Tasks
+
+- Release 0.21.0
+
+## [0.20.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.20.0) - 2025-11-05
+
+### Dependencies
+
+- Bump revm 31 ([#85](https://github.com/foundry-rs/foundry-fork-db/issues/85))
+- [deps] Bump taiki-e/install-action from 2.62.39 to 2.62.45 ([#84](https://github.com/foundry-rs/foundry-fork-db/issues/84))
+- [deps] Bump taiki-e/install-action from 2.62.33 to 2.62.39 ([#83](https://github.com/foundry-rs/foundry-fork-db/issues/83))
+- [deps] Bump taiki-e/install-action from 2.62.28 to 2.62.33 ([#82](https://github.com/foundry-rs/foundry-fork-db/issues/82))
+
+### Features
+
+- Erase provider generic ([#80](https://github.com/foundry-rs/foundry-fork-db/issues/80))
+
+### Miscellaneous Tasks
+
+- Release 0.20.0
+- Use inspect_err ([#81](https://github.com/foundry-rs/foundry-fork-db/issues/81))
+
 ## [0.19.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.19.0) - 2025-10-15
 
 ### Dependencies
@@ -20,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous Tasks
 
+- Release 0.19.0
 - Rm `doc_auto_cfg` ([#75](https://github.com/foundry-rs/foundry-fork-db/issues/75))
 - [`ci`] Clean up workflow + harden workflow by setting default permission to read only ([#65](https://github.com/foundry-rs/foundry-fork-db/issues/65))
 
