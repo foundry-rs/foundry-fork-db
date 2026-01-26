@@ -174,6 +174,7 @@ impl BlockchainDbMeta {
                 block.header.excess_blob_gas().unwrap_or_default(),
                 blob_base_fee_update_fraction,
             )),
+            slot_num: 0,
         };
 
         self
