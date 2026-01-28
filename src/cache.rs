@@ -11,7 +11,7 @@ use revm::{
     context_interface::block::BlobExcessGasAndPrice,
     primitives::{
         eip4844::{BLOB_BASE_FEE_UPDATE_FRACTION_CANCUN, BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE},
-        map::{AddressHashMap, HashMap},
+        map::{AddressHashMap, U256Map},
         KECCAK_EMPTY,
     },
     state::{Account, AccountInfo, AccountStatus},
@@ -27,7 +27,7 @@ use std::{
 };
 use url::Url;
 
-pub type StorageInfo = HashMap<U256, U256>;
+pub type StorageInfo = U256Map<U256>;
 
 /// A shareable Block database
 #[derive(Clone, Debug)]
@@ -106,7 +106,7 @@ impl BlockchainDb {
     }
 
     /// Returns the map that holds all the block hashes
-    pub fn block_hashes(&self) -> &RwLock<HashMap<U256, B256>> {
+    pub fn block_hashes(&self) -> &RwLock<U256Map<B256>> {
         &self.db.block_hashes
     }
 
@@ -287,7 +287,7 @@ pub struct MemDb {
     /// Storage related data
     pub storage: RwLock<AddressHashMap<StorageInfo>>,
     /// All retrieved block hashes
-    pub block_hashes: RwLock<HashMap<U256, B256>>,
+    pub block_hashes: RwLock<U256Map<B256>>,
 }
 
 impl MemDb {
@@ -500,8 +500,8 @@ impl<'de> Deserialize<'de> for JsonBlockCacheData {
         struct Data {
             meta: BlockchainDbMeta,
             accounts: AddressHashMap<AccountInfo>,
-            storage: AddressHashMap<HashMap<U256, U256>>,
-            block_hashes: HashMap<U256, B256>,
+            storage: AddressHashMap<U256Map<U256>>,
+            block_hashes: U256Map<B256>,
         }
 
         let Data { meta, accounts, storage, block_hashes } = Data::deserialize(deserializer)?;
