@@ -306,7 +306,11 @@ impl MemDb {
     /// The implementation of [DatabaseCommit::commit()]
     pub fn do_commit(
         &self,
-        changes: std::collections::HashMap<Address, Account, alloy_primitives::map::FbBuildHasher<20>>,
+        changes: std::collections::HashMap<
+            Address,
+            Account,
+            alloy_primitives::map::FbBuildHasher<20>,
+        >,
     ) {
         let mut storage = self.storage.write();
         let mut accounts = self.accounts.write();
@@ -361,7 +365,11 @@ impl Clone for MemDb {
 impl DatabaseCommit for MemDb {
     fn commit(
         &mut self,
-        changes: std::collections::HashMap<Address, Account, alloy_primitives::map::FbBuildHasher<20>>,
+        changes: std::collections::HashMap<
+            Address,
+            Account,
+            alloy_primitives::map::FbBuildHasher<20>,
+        >,
     ) {
         self.do_commit(changes)
     }
