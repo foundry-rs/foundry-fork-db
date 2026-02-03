@@ -6,8 +6,8 @@ use crate::{
 };
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_provider::{
-    network::{AnyNetwork, AnyRpcBlock, AnyRpcTransaction},
-    DynProvider, Provider,
+    network::{primitives::HeaderResponse, AnyNetwork, BlockResponse},
+    DynProvider, Network, Provider,
 };
 use alloy_rpc_types::BlockId;
 use eyre::WrapErr;
@@ -51,17 +51,35 @@ type AccountFuture<Err> =
     Pin<Box<dyn Future<Output = (Result<(U256, u64, Bytes), Err>, Address)> + Send>>;
 type StorageFuture<Err> = Pin<Box<dyn Future<Output = (Result<U256, Err>, Address, U256)> + Send>>;
 type BlockHashFuture<Err> = Pin<Box<dyn Future<Output = (Result<B256, Err>, u64)> + Send>>;
-type FullBlockFuture<Err> = Pin<
-    Box<dyn Future<Output = (FullBlockSender, Result<Option<AnyRpcBlock>, Err>, BlockId)> + Send>,
+type FullBlockFuture<Err, N = AnyNetwork> = Pin<
+    Box<
+        dyn Future<
+                Output = (
+                    FullBlockSender<N>,
+                    Result<Option<<N as Network>::BlockResponse>, Err>,
+                    BlockId,
+                ),
+            > + Send,
+    >,
 >;
-type TransactionFuture<Err> =
-    Pin<Box<dyn Future<Output = (TransactionSender, Result<AnyRpcTransaction, Err>, B256)> + Send>>;
+type TransactionFuture<Err, N = AnyNetwork> = Pin<
+    Box<
+        dyn Future<
+                Output = (
+                    TransactionSender<N>,
+                    Result<<N as Network>::TransactionResponse, Err>,
+                    B256,
+                ),
+            > + Send,
+    >,
+>;
 
 type AccountInfoSender = OneshotSender<DatabaseResult<AccountInfo>>;
 type StorageSender = OneshotSender<DatabaseResult<U256>>;
 type BlockHashSender = OneshotSender<DatabaseResult<B256>>;
-type FullBlockSender = OneshotSender<DatabaseResult<AnyRpcBlock>>;
-type TransactionSender = OneshotSender<DatabaseResult<AnyRpcTransaction>>;
+type FullBlockSender<N = AnyNetwork> = OneshotSender<DatabaseResult<<N as Network>::BlockResponse>>;
+type TransactionSender<N = AnyNetwork> =
+    OneshotSender<DatabaseResult<<N as Network>::TransactionResponse>>;
 
 type AddressData = AddressHashMap<AccountInfo>;
 type StorageData = AddressHashMap<StorageInfo>;
@@ -115,18 +133,18 @@ where
 }
 
 /// Request variants that are executed by the provider
-enum ProviderRequest<Err> {
+enum ProviderRequest<Err, N: Network = AnyNetwork> {
     Account(AccountFuture<Err>),
     Storage(StorageFuture<Err>),
     BlockHash(BlockHashFuture<Err>),
-    FullBlock(FullBlockFuture<Err>),
-    Transaction(TransactionFuture<Err>),
+    FullBlock(FullBlockFuture<Err, N>),
+    Transaction(TransactionFuture<Err, N>),
     AnyRequest(Box<dyn WrappedAnyRequest>),
 }
 
 /// The Request type the Backend listens for
 #[derive(Debug)]
-enum BackendRequest {
+enum BackendRequest<N: Network = AnyNetwork> {
     /// Fetch the account info
     Basic(Address, AccountInfoSender),
     /// Fetch a storage slot
@@ -134,9 +152,9 @@ enum BackendRequest {
     /// Fetch a block hash
     BlockHash(u64, BlockHashSender),
     /// Fetch an entire block with transactions
-    FullBlock(BlockId, FullBlockSender),
+    FullBlock(BlockId, FullBlockSender<N>),
     /// Fetch a transaction
-    Transaction(B256, TransactionSender),
+    Transaction(B256, TransactionSender<N>),
     /// Sets the pinned block to fetch data from
     SetPinnedBlock(BlockId),
 
@@ -155,12 +173,12 @@ enum BackendRequest {
 /// This handler will remain active as long as it is reachable (request channel still open) and
 /// requests are in progress.
 #[must_use = "futures do nothing unless polled"]
-pub struct BackendHandler {
-    provider: DynProvider<AnyNetwork>,
+pub struct BackendHandler<N: Network = AnyNetwork> {
+    provider: DynProvider<N>,
     /// Stores all the data.
     db: BlockchainDb,
     /// Requests currently in progress
-    pending_requests: Vec<ProviderRequest<eyre::Report>>,
+    pending_requests: Vec<ProviderRequest<eyre::Report, N>>,
     /// Listeners that wait for a `get_account` related response
     account_requests: HashMap<Address, Vec<AccountInfoSender>>,
     /// Listeners that wait for a `get_storage_at` response
@@ -168,9 +186,9 @@ pub struct BackendHandler {
     /// Listeners that wait for a `get_block` response
     block_requests: HashMap<u64, Vec<BlockHashSender>>,
     /// Incoming commands.
-    incoming: UnboundedReceiver<BackendRequest>,
+    incoming: UnboundedReceiver<BackendRequest<N>>,
     /// unprocessed queued requests
-    queued_requests: VecDeque<BackendRequest>,
+    queued_requests: VecDeque<BackendRequest<N>>,
     /// The block to fetch data from.
     // This is an `Option` so that we can have less code churn in the functions below
     block_id: Option<BlockId>,
@@ -178,11 +196,11 @@ pub struct BackendHandler {
     account_fetch_mode: Arc<AtomicU8>,
 }
 
-impl BackendHandler {
+impl<N: Network> BackendHandler<N> {
     fn new(
-        provider: DynProvider<AnyNetwork>,
+        provider: DynProvider<N>,
         db: BlockchainDb,
-        rx: UnboundedReceiver<BackendRequest>,
+        rx: UnboundedReceiver<BackendRequest<N>>,
         block_id: Option<BlockId>,
     ) -> Self {
         Self {
@@ -205,7 +223,7 @@ impl BackendHandler {
     ///  1. if the requested value is already stored in the cache, then answer the sender
     ///  2. otherwise, fetch it via the provider but check if a request for that value is already in
     ///     progress (e.g. another Sender just requested the same account)
-    fn on_request(&mut self, req: BackendRequest) {
+    fn on_request(&mut self, req: BackendRequest<N>) {
         match req {
             BackendRequest::Basic(addr, sender) => {
                 trace!(target: "backendhandler", "received request basic address={:?}", addr);
@@ -290,7 +308,7 @@ impl BackendHandler {
     }
 
     /// returns the future that fetches the account data
-    fn get_account_req(&self, address: Address) -> ProviderRequest<eyre::Report> {
+    fn get_account_req(&self, address: Address) -> ProviderRequest<eyre::Report, N> {
         trace!(target: "backendhandler", "preparing account request, address={:?}", address);
 
         let provider = self.provider.clone();
@@ -402,7 +420,7 @@ impl BackendHandler {
     }
 
     /// process a request for an entire block
-    fn request_full_block(&mut self, number: BlockId, sender: FullBlockSender) {
+    fn request_full_block(&mut self, number: BlockId, sender: FullBlockSender<N>) {
         let provider = self.provider.clone();
         let fut = Box::pin(async move {
             let block = provider
@@ -417,7 +435,7 @@ impl BackendHandler {
     }
 
     /// process a request for a transactions
-    fn request_transaction(&mut self, tx: B256, sender: TransactionSender) {
+    fn request_transaction(&mut self, tx: B256, sender: TransactionSender<N>) {
         let provider = self.provider.clone();
         let fut = Box::pin(async move {
             let block = provider
@@ -451,7 +469,7 @@ impl BackendHandler {
                         .wrap_err("failed to get block");
 
                     let block_hash = match block {
-                        Ok(Some(block)) => Ok(block.header.hash),
+                        Ok(Some(block)) => Ok(block.header().hash()),
                         Ok(None) => {
                             warn!(target: "backendhandler", ?number, "block not found");
                             // if no block was returned then the block does not exist, in which case
@@ -471,7 +489,7 @@ impl BackendHandler {
     }
 }
 
-impl Future for BackendHandler {
+impl<N: Network> Future for BackendHandler<N> {
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -713,9 +731,9 @@ impl BlockingMode {
 // This prevents issues (hangs) we ran into were the [SharedBackend] itself is called from a spawned
 // task.
 #[derive(Clone, Debug)]
-pub struct SharedBackend {
+pub struct SharedBackend<N: Network = AnyNetwork> {
     /// channel used for sending commands related to database operations
-    backend: UnboundedSender<BackendRequest>,
+    backend: UnboundedSender<BackendRequest<N>>,
     /// Ensures that the underlying cache gets flushed once the last `SharedBackend` is dropped.
     ///
     /// There is only one instance of the type, so as soon as the last `SharedBackend` is deleted,
@@ -726,13 +744,13 @@ pub struct SharedBackend {
     blocking_mode: BlockingMode,
 }
 
-impl SharedBackend {
+impl<N: Network> SharedBackend<N> {
     /// _Spawns_ a new `BackendHandler` on a `tokio::task` that listens for requests from any
     /// `SharedBackend`. Missing values get inserted in the `db`.
     ///
     /// The spawned `BackendHandler` finishes once the last `SharedBackend` connected to it is
     /// dropped.
-    pub async fn spawn_backend<P: Provider<AnyNetwork> + 'static>(
+    pub async fn spawn_backend<P: Provider<N> + 'static>(
         provider: P,
         db: BlockchainDb,
         pin_block: Option<BlockId>,
@@ -746,7 +764,7 @@ impl SharedBackend {
 
     /// Same as `Self::spawn_backend` but spawns the `BackendHandler` on a separate `std::thread` in
     /// its own `tokio::Runtime`
-    pub fn spawn_backend_thread<P: Provider<AnyNetwork> + 'static>(
+    pub fn spawn_backend_thread<P: Provider<N> + 'static>(
         provider: P,
         db: BlockchainDb,
         pin_block: Option<BlockId>,
@@ -772,11 +790,11 @@ impl SharedBackend {
     }
 
     /// Returns a new `SharedBackend` and the `BackendHandler`
-    pub fn new<P: Provider<AnyNetwork> + 'static>(
+    pub fn new<P: Provider<N> + 'static>(
         provider: P,
         db: BlockchainDb,
         pin_block: Option<BlockId>,
-    ) -> (Self, BackendHandler) {
+    ) -> (Self, BackendHandler<N>) {
         let (backend, backend_rx) = unbounded();
         let cache = Arc::new(FlushJsonBlockCacheDB(Arc::clone(db.cache())));
         let handler = BackendHandler::new(provider.erased(), db, backend_rx, pin_block);
@@ -795,7 +813,7 @@ impl SharedBackend {
     }
 
     /// Returns the full block for the given block identifier
-    pub fn get_full_block(&self, block: impl Into<BlockId>) -> DatabaseResult<AnyRpcBlock> {
+    pub fn get_full_block(&self, block: impl Into<BlockId>) -> DatabaseResult<N::BlockResponse> {
         self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::FullBlock(block.into(), sender);
@@ -805,7 +823,7 @@ impl SharedBackend {
     }
 
     /// Returns the transaction for the hash
-    pub fn get_transaction(&self, tx: B256) -> DatabaseResult<AnyRpcTransaction> {
+    pub fn get_transaction(&self, tx: B256) -> DatabaseResult<N::TransactionResponse> {
         self.blocking_mode.run(|| {
             let (sender, rx) = oneshot_channel();
             let req = BackendRequest::Transaction(tx, sender);
@@ -940,7 +958,7 @@ impl SharedBackend {
     }
 }
 
-impl DatabaseRef for SharedBackend {
+impl<N: Network> DatabaseRef for SharedBackend<N> {
     type Error = DatabaseError;
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
