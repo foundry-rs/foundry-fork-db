@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.23.0) - 2026-02-11
+
+### Dependencies
+
+- [deps] Bump taiki-e/install-action from 2.67.18 to 2.67.27 ([#105](https://github.com/foundry-rs/foundry-fork-db/issues/105))
+- [deps] Bump taiki-e/install-action from 2.67.13 to 2.67.18 ([#104](https://github.com/foundry-rs/foundry-fork-db/issues/104))
+- [deps] Bump taiki-e/install-action from 2.66.7 to 2.67.13 ([#102](https://github.com/foundry-rs/foundry-fork-db/issues/102))
+- [deps] Bump taiki-e/install-action from 2.66.1 to 2.66.7 ([#100](https://github.com/foundry-rs/foundry-fork-db/issues/100))
+
+### Features
+
+- [backend] Generic `Network` ([#103](https://github.com/foundry-rs/foundry-fork-db/issues/103))
+
+### Other
+
+- Update to tempoxyz ([#99](https://github.com/foundry-rs/foundry-fork-db/issues/99))
+
 ## [0.22.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.22.0) - 2026-01-16
 
 ### Dependencies
@@ -20,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [deps] Bump actions/checkout from 5 to 6 ([#89](https://github.com/foundry-rs/foundry-fork-db/issues/89))
 - [deps] Bump taiki-e/install-action from 2.62.52 to 2.62.60 ([#91](https://github.com/foundry-rs/foundry-fork-db/issues/91))
 - [deps] Bump taiki-e/install-action from 2.62.49 to 2.62.52 ([#88](https://github.com/foundry-rs/foundry-fork-db/issues/88))
+
+### Miscellaneous Tasks
+
+- Release 0.22.0
 
 ## [0.21.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.21.0) - 2025-11-12
 
