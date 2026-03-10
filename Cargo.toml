@@ -26,11 +26,11 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 alloy-chains = { version = "0.2", default-features = false, features = ["serde"] }
-alloy-consensus = { version = "1.0.38", default-features = false }
+alloy-consensus = { version = "2.0.0-rc.0", default-features = false }
 alloy-hardforks = { version = "0.4.0", default-features = false }
 alloy-primitives = { version = "1.4", features = ["map"] }
-alloy-provider = { version = "1.0.38", default-features = false }
-alloy-rpc-types = { version = "1.0.38", features = ["eth"] }
+alloy-provider = { version = "2.0.0-rc.0", default-features = false }
+alloy-rpc-types = { version = "2.0.0-rc.0", features = ["eth"] }
 
 eyre = "0.6"
 futures = "0.3"
@@ -49,11 +49,19 @@ tracing = "0.1"
 url = "2"
 
 [dev-dependencies]
-alloy-rpc-client = "1.0.38"
+alloy-rpc-client = "2.0.0-rc.0"
 tiny_http = "0.12"
 
-# [patch.crates-io]
-# alloy-provider = { git = "https://github.com/alloy-rs/alloy", rev = "a4e7099" }
-# alloy-rpc-types = { git = "https://github.com/alloy-rs/alloy", rev = "a4e7099" }
-# alloy-consensus = { git = "https://github.com/alloy-rs/alloy", rev = "a4e7099" }
-# alloy-rpc-client = { git = "https://github.com/alloy-rs/alloy", rev = "a4e7099" }
+[patch.crates-io]
+alloy-consensus = { git = "https://github.com/alloy-rs/alloy", rev = "100a3325ac4d624f3eb0bd404125750e76edf8ca" }
+alloy-network = { git = "https://github.com/alloy-rs/alloy", rev = "100a3325ac4d624f3eb0bd404125750e76edf8ca" }
+alloy-network-primitives = { git = "https://github.com/alloy-rs/alloy", rev = "100a3325ac4d624f3eb0bd404125750e76edf8ca" }
+alloy-provider = { git = "https://github.com/alloy-rs/alloy", rev = "100a3325ac4d624f3eb0bd404125750e76edf8ca" }
+alloy-rpc-types = { git = "https://github.com/alloy-rs/alloy", rev = "100a3325ac4d624f3eb0bd404125750e76edf8ca" }
+alloy-rpc-types-eth = { git = "https://github.com/alloy-rs/alloy", rev = "100a3325ac4d624f3eb0bd404125750e76edf8ca" }
+alloy-rpc-client = { git = "https://github.com/alloy-rs/alloy", rev = "100a3325ac4d624f3eb0bd404125750e76edf8ca" }
+alloy-serde = { git = "https://github.com/alloy-rs/alloy", rev = "100a3325ac4d624f3eb0bd404125750e76edf8ca" }
+alloy-transport = { git = "https://github.com/alloy-rs/alloy", rev = "100a3325ac4d624f3eb0bd404125750e76edf8ca" }
+alloy-transport-http = { git = "https://github.com/alloy-rs/alloy", rev = "100a3325ac4d624f3eb0bd404125750e76edf8ca" }
+alloy-json-rpc = { git = "https://github.com/alloy-rs/alloy", rev = "100a3325ac4d624f3eb0bd404125750e76edf8ca" }
+alloy-eips = { git = "https://github.com/alloy-rs/alloy", rev = "100a3325ac4d624f3eb0bd404125750e76edf8ca" }
