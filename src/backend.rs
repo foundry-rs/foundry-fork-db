@@ -4,7 +4,7 @@ use crate::{
     cache::{BlockchainDb, FlushJsonBlockCacheDB, MemDb, StorageInfo},
     error::{DatabaseError, DatabaseResult},
 };
-use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
+use alloy_primitives::{keccak256, map::U256Map, Address, Bytes, B256, U256};
 use alloy_provider::{
     network::{primitives::HeaderResponse, AnyNetwork, BlockResponse},
     DynProvider, Network, Provider,
@@ -83,7 +83,7 @@ type TransactionSender<N = AnyNetwork> =
 
 type AddressData = AddressHashMap<AccountInfo>;
 type StorageData = AddressHashMap<StorageInfo>;
-type BlockHashData = HashMap<U256, B256>;
+type BlockHashData = U256Map<B256>;
 
 /// States for tracking which account endpoints should be used when account info
 const ACCOUNT_FETCH_UNCHECKED: u8 = 0;
