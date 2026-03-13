@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.24.0) - 2026-03-13
+
+### Dependencies
+
+- Bump revm to 36.0.0 ([#112](https://github.com/foundry-rs/foundry-fork-db/issues/112))
+- [deps] Bump taiki-e/install-action from 2.68.16 to 2.68.25 ([#110](https://github.com/foundry-rs/foundry-fork-db/issues/110))
+- [deps] Bump taiki-e/install-action from 2.68.8 to 2.68.16 ([#109](https://github.com/foundry-rs/foundry-fork-db/issues/109))
+- [deps] Bump taiki-e/install-action from 2.68.0 to 2.68.8 ([#107](https://github.com/foundry-rs/foundry-fork-db/issues/107))
+- Bump MSRV to 1.91 ([#108](https://github.com/foundry-rs/foundry-fork-db/issues/108))
+- [deps] Bump taiki-e/install-action from 2.67.27 to 2.68.0 ([#106](https://github.com/foundry-rs/foundry-fork-db/issues/106))
+
 ## [0.23.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.23.0) - 2026-02-11
 
 ### Dependencies
@@ -17,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - [backend] Generic `Network` ([#103](https://github.com/foundry-rs/foundry-fork-db/issues/103))
+
+### Miscellaneous Tasks
+
+- Release 0.23.0
 
 ### Other
 
@@ -443,6 +458,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Miscellaneous Tasks
 
 - Release 0.2.0
+
+## [0.2.1](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.2.1) - 2024-08-08
 
 ### Other
 
