@@ -21,7 +21,7 @@ use futures::{
 use revm::{
     database::DatabaseRef,
     primitives::{
-        map::{hash_map::Entry, AddressHashMap, HashMap},
+        map::{hash_map::Entry, AddressHashMap, HashMap, U256Map},
         KECCAK_EMPTY,
     },
     state::{AccountInfo, Bytecode},
@@ -83,7 +83,7 @@ type TransactionSender<N = AnyNetwork> =
 
 type AddressData = AddressHashMap<AccountInfo>;
 type StorageData = AddressHashMap<StorageInfo>;
-type BlockHashData = HashMap<U256, B256>;
+type BlockHashData = U256Map<B256>;
 
 /// States for tracking which account endpoints should be used when account info
 const ACCOUNT_FETCH_UNCHECKED: u8 = 0;
