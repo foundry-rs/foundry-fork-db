@@ -11,7 +11,7 @@ use revm::{
     context_interface::block::BlobExcessGasAndPrice,
     primitives::{
         eip4844::{BLOB_BASE_FEE_UPDATE_FRACTION_CANCUN, BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE},
-        map::{AddressHashMap, HashMap},
+        map::{AddressHashMap, AddressMap, HashMap},
         KECCAK_EMPTY,
     },
     state::{Account, AccountInfo, AccountStatus},
@@ -174,6 +174,7 @@ impl BlockchainDbMeta {
                 block.header.excess_blob_gas().unwrap_or_default(),
                 blob_base_fee_update_fraction,
             )),
+            slot_num: 0,
         };
 
         self
@@ -303,7 +304,7 @@ impl MemDb {
     }
 
     /// The implementation of [DatabaseCommit::commit()]
-    pub fn do_commit(&self, changes: HashMap<Address, Account>) {
+    pub fn do_commit(&self, changes: AddressMap<Account>) {
         let mut storage = self.storage.write();
         let mut accounts = self.accounts.write();
         for (add, mut acc) in changes {
@@ -355,7 +356,7 @@ impl Clone for MemDb {
 }
 
 impl DatabaseCommit for MemDb {
-    fn commit(&mut self, changes: HashMap<Address, Account>) {
+    fn commit(&mut self, changes: AddressMap<Account>) {
         self.do_commit(changes)
     }
 }
