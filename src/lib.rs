@@ -10,5 +10,5 @@ pub mod cache;
 pub mod error;
 
 pub use backend::{BackendHandler, SharedBackend};
-pub use cache::BlockchainDb;
+pub use cache::{BlockchainDb, DeserializeBlockEnv, ForkBlockEnv};
 pub use error::{DatabaseError, DatabaseResult};
