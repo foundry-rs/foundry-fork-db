@@ -1073,7 +1073,7 @@ mod tests {
     #[test]
     fn can_read_cache() {
         let cache_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test-data/storage.json");
-        let json = JsonBlockCacheDB::load(cache_path).unwrap();
+        let json = JsonBlockCacheDB::<BlockEnv>::load(cache_path).unwrap();
         assert!(!json.db().accounts.read().is_empty());
     }
 
