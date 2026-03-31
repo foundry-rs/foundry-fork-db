@@ -1,10 +1,9 @@
 //! Smart caching and deduplication of requests when using a forking provider.
 
 use crate::{
-    cache::{
-        BlockchainDb, FlushJsonBlockCacheDB, ForkBlockEnv, JsonBlockCacheData, MemDb, StorageInfo,
-    },
+    cache::{BlockchainDb, FlushJsonBlockCacheDB, ForkBlockEnv, MemDb, StorageInfo},
     error::{DatabaseError, DatabaseResult},
+    SerializeBlockEnv,
 };
 use alloy_primitives::{keccak256, map::U256Map, Address, Bytes, B256, U256};
 use alloy_provider::{
@@ -29,7 +28,6 @@ use revm::{
     },
     state::{AccountInfo, Bytecode},
 };
-use serde::Serialize;
 use std::{
     collections::VecDeque,
     fmt,
@@ -735,10 +733,7 @@ impl BlockingMode {
 // This prevents issues (hangs) we ran into were the [SharedBackend] itself is called from a spawned
 // task.
 #[derive(Clone, Debug)]
-pub struct SharedBackend<N: Network = AnyNetwork, B = BlockEnv>
-where
-    JsonBlockCacheData<B>: Serialize,
-{
+pub struct SharedBackend<N: Network = AnyNetwork, B: SerializeBlockEnv = BlockEnv> {
     /// channel used for sending commands related to database operations
     backend: UnboundedSender<BackendRequest<N>>,
     /// Ensures that the underlying cache gets flushed once the last `SharedBackend` is dropped.

@@ -123,7 +123,7 @@ impl<B: ForkBlockEnv> BlockchainDb<B> {
 ///
 /// This exists because some block environment types (e.g. [`TempoBlockEnv`]) do not implement
 /// [`Serialize`] directly, so their serializable representation is handled here.
-pub trait SerializeBlockEnv {
+pub trait SerializeBlockEnv: Clone {
     fn serialize_block_env<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error>;
 }
 
@@ -258,10 +258,7 @@ struct BlockEnvBackwardsCompat {
 }
 
 impl<'de> Deserialize<'de> for BlockEnvBackwardsCompat {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let mut value = serde_json::Value::deserialize(deserializer)?;
 
         // we check for any missing fields here
@@ -296,10 +293,7 @@ impl From<Hosts> for BTreeSet<String> {
 }
 
 impl<'de, B: DeserializeBlockEnv> Deserialize<'de> for BlockchainDbMeta<B> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
         struct Meta {
             chain: Option<Chain>,
@@ -455,10 +449,7 @@ impl<B: ForkBlockEnv> JsonBlockCacheDB<B> {
     }
 }
 
-impl<B> JsonBlockCacheDB<B>
-where
-    JsonBlockCacheData<B>: Serialize,
-{
+impl<B: SerializeBlockEnv> JsonBlockCacheDB<B> {
     /// Flushes the DB to disk if caching is enabled.
     #[instrument(level = "warn", skip_all, fields(path = ?self.cache_path))]
     pub fn flush(&self) {
@@ -503,14 +494,8 @@ pub struct JsonBlockCacheData<B> {
     pub data: Arc<MemDb>,
 }
 
-impl<B> Serialize for JsonBlockCacheData<B>
-where
-    BlockchainDbMeta<B>: Clone + Serialize,
-{
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
+impl<B: SerializeBlockEnv> Serialize for JsonBlockCacheData<B> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut map = serializer.serialize_map(Some(4))?;
 
         map.serialize_entry("meta", &self.meta.read().clone())?;
@@ -522,14 +507,8 @@ where
     }
 }
 
-impl<'de, B> Deserialize<'de> for JsonBlockCacheData<B>
-where
-    BlockchainDbMeta<B>: Deserialize<'de>,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
+impl<'de, B: DeserializeBlockEnv> Deserialize<'de> for JsonBlockCacheData<B> {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
         struct Data<B> {
             meta: B,
@@ -557,14 +536,9 @@ where
 /// This type intentionally does not implement `Clone` since it's intended that there's only once
 /// instance that will flush the cache.
 #[derive(Debug)]
-pub struct FlushJsonBlockCacheDB<B>(pub Arc<JsonBlockCacheDB<B>>)
-where
-    JsonBlockCacheData<B>: Serialize;
+pub struct FlushJsonBlockCacheDB<B: SerializeBlockEnv>(pub Arc<JsonBlockCacheDB<B>>);
 
-impl<B> Drop for FlushJsonBlockCacheDB<B>
-where
-    JsonBlockCacheData<B>: Serialize,
-{
+impl<B: SerializeBlockEnv> Drop for FlushJsonBlockCacheDB<B> {
     fn drop(&mut self) {
         trace!(target: "fork::cache", "flushing cache");
         self.0.flush();
