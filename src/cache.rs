@@ -163,7 +163,7 @@ impl<B> BlockchainDbMeta<B> {
     }
 
     /// Sets the block environment of this instance
-    pub const fn set_block_env(mut self, block_env: B) -> Self {
+    pub fn set_block_env(mut self, block_env: B) -> Self {
         self.block_env = block_env;
         self
     }
