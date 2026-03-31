@@ -176,7 +176,7 @@ impl<B> BlockchainDbMeta<B> {
     }
 
     /// Sets the [Chain] of this instance
-    pub fn set_chain(mut self, chain: Chain) -> Self {
+    pub const fn set_chain(mut self, chain: Chain) -> Self {
         self.chain = Some(chain);
         self
     }
