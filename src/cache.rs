@@ -24,7 +24,7 @@ pub type StorageInfo = StorageKeyMap<U256>;
 
 /// A shareable Block database
 #[derive(Clone, Debug)]
-pub struct BlockchainDb<B> {
+pub struct BlockchainDb<B = BlockEnv> {
     /// Contains all the data
     db: Arc<MemDb>,
     /// metadata of the current config
