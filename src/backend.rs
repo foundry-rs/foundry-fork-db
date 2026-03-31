@@ -1,8 +1,9 @@
 //! Smart caching and deduplication of requests when using a forking provider.
 
 use crate::{
-    cache::{BlockchainDb, FlushJsonBlockCacheDB, JsonBlockCacheData, MemDb, StorageInfo},
+    cache::{BlockchainDb, FlushJsonBlockCacheDB, ForkBlockEnv, MemDb, StorageInfo},
     error::{DatabaseError, DatabaseResult},
+    SerializeBlockEnv,
 };
 use alloy_primitives::{keccak256, map::U256Map, Address, Bytes, B256, U256};
 use alloy_provider::{
@@ -27,7 +28,6 @@ use revm::{
     },
     state::{AccountInfo, Bytecode},
 };
-use serde::Serialize;
 use std::{
     collections::VecDeque,
     fmt,
@@ -198,11 +198,7 @@ pub struct BackendHandler<N: Network = AnyNetwork, B = BlockEnv> {
     account_fetch_mode: Arc<AtomicU8>,
 }
 
-impl<N: Network, B> BackendHandler<N, B>
-where
-    B: Clone + PartialEq + Send + Sync + 'static,
-    JsonBlockCacheData<B>: for<'de> serde::Deserialize<'de>,
-{
+impl<N: Network, B: ForkBlockEnv> BackendHandler<N, B> {
     fn new(
         provider: DynProvider<N>,
         db: BlockchainDb<B>,
@@ -495,11 +491,7 @@ where
     }
 }
 
-impl<N: Network, B> Future for BackendHandler<N, B>
-where
-    B: Clone + PartialEq + Send + Sync + 'static,
-    JsonBlockCacheData<B>: for<'de> serde::Deserialize<'de>,
-{
+impl<N: Network, B: ForkBlockEnv> Future for BackendHandler<N, B> {
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -741,10 +733,7 @@ impl BlockingMode {
 // This prevents issues (hangs) we ran into were the [SharedBackend] itself is called from a spawned
 // task.
 #[derive(Clone, Debug)]
-pub struct SharedBackend<N: Network = AnyNetwork, B = BlockEnv>
-where
-    JsonBlockCacheData<B>: Serialize,
-{
+pub struct SharedBackend<N: Network = AnyNetwork, B: SerializeBlockEnv = BlockEnv> {
     /// channel used for sending commands related to database operations
     backend: UnboundedSender<BackendRequest<N>>,
     /// Ensures that the underlying cache gets flushed once the last `SharedBackend` is dropped.
@@ -757,11 +746,7 @@ where
     blocking_mode: BlockingMode,
 }
 
-impl<N: Network, B> SharedBackend<N, B>
-where
-    B: Clone + PartialEq + Send + Sync + 'static,
-    JsonBlockCacheData<B>: for<'de> serde::Deserialize<'de> + Serialize,
-{
+impl<N: Network, B: ForkBlockEnv> SharedBackend<N, B> {
     /// _Spawns_ a new `BackendHandler` on a `tokio::task` that listens for requests from any
     /// `SharedBackend`. Missing values get inserted in the `db`.
     ///
@@ -975,11 +960,7 @@ where
     }
 }
 
-impl<N: Network, B> DatabaseRef for SharedBackend<N, B>
-where
-    B: Clone + PartialEq + Send + Sync + 'static,
-    JsonBlockCacheData<B>: for<'de> serde::Deserialize<'de> + Serialize,
-{
+impl<N: Network, B: ForkBlockEnv> DatabaseRef for SharedBackend<N, B> {
     type Error = DatabaseError;
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {

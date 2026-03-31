@@ -33,11 +33,7 @@ pub struct BlockchainDb<B = BlockEnv> {
     cache: Arc<JsonBlockCacheDB<B>>,
 }
 
-impl<B> BlockchainDb<B>
-where
-    B: Clone + PartialEq + Send + Sync + 'static,
-    JsonBlockCacheData<B>: for<'de> Deserialize<'de>,
-{
+impl<B: ForkBlockEnv> BlockchainDb<B> {
     /// Creates a new instance of the [BlockchainDb].
     ///
     /// If a `cache_path` is provided it attempts to load a previously stored [JsonBlockCacheData]
@@ -127,7 +123,7 @@ where
 ///
 /// This exists because some block environment types (e.g. [`TempoBlockEnv`]) do not implement
 /// [`Serialize`] directly, so their serializable representation is handled here.
-pub trait SerializeBlockEnv {
+pub trait SerializeBlockEnv: Clone {
     fn serialize_block_env<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error>;
 }
 
@@ -141,6 +137,40 @@ impl SerializeBlockEnv for TempoBlockEnv {
     fn serialize_block_env<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         self.inner.serialize(serializer)
     }
+}
+
+/// A helper trait for deserializing the `block_env` field of [`BlockchainDbMeta`].
+///
+/// This exists because some block environment types (e.g. [`TempoBlockEnv`]) do not implement
+/// [`Deserialize`] directly, so their construction from a stored [`BlockEnv`] is handled here.
+pub trait DeserializeBlockEnv: Sized {
+    fn from_owned_block_env(block_env: BlockEnv) -> Self;
+}
+
+impl DeserializeBlockEnv for BlockEnv {
+    fn from_owned_block_env(block_env: BlockEnv) -> Self {
+        block_env
+    }
+}
+
+impl DeserializeBlockEnv for TempoBlockEnv {
+    fn from_owned_block_env(block_env: BlockEnv) -> Self {
+        Self { inner: block_env, timestamp_millis_part: 0 }
+    }
+}
+
+/// Marker trait for block environment types that can be used with the forking backend.
+///
+/// Automatically implemented for any `B: SerializeBlockEnv + DeserializeBlockEnv + Clone +
+/// PartialEq + Send + Sync + 'static`.
+pub trait ForkBlockEnv:
+    SerializeBlockEnv + DeserializeBlockEnv + Clone + PartialEq + Send + Sync + 'static
+{
+}
+
+impl<B: SerializeBlockEnv + DeserializeBlockEnv + Clone + PartialEq + Send + Sync + 'static>
+    ForkBlockEnv for B
+{
 }
 
 /// relevant identifying markers in the context of [BlockchainDb]
@@ -228,10 +258,7 @@ struct BlockEnvBackwardsCompat {
 }
 
 impl<'de> Deserialize<'de> for BlockEnvBackwardsCompat {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let mut value = serde_json::Value::deserialize(deserializer)?;
 
         // we check for any missing fields here
@@ -265,11 +292,8 @@ impl From<Hosts> for BTreeSet<String> {
     }
 }
 
-impl<'de> Deserialize<'de> for BlockchainDbMeta<BlockEnv> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
+impl<'de, B: DeserializeBlockEnv> Deserialize<'de> for BlockchainDbMeta<B> {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
         struct Meta {
             chain: Option<Chain>,
@@ -279,29 +303,7 @@ impl<'de> Deserialize<'de> for BlockchainDbMeta<BlockEnv> {
         }
 
         let Meta { chain, block_env, hosts } = Meta::deserialize(deserializer)?;
-        Ok(Self { chain, block_env: block_env.inner, hosts: hosts.into() })
-    }
-}
-
-impl<'de> Deserialize<'de> for BlockchainDbMeta<TempoBlockEnv> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        struct Meta {
-            chain: Option<Chain>,
-            block_env: BlockEnvBackwardsCompat,
-            #[serde(alias = "host")]
-            hosts: Hosts,
-        }
-
-        let Meta { chain, block_env, hosts } = Meta::deserialize(deserializer)?;
-        Ok(Self {
-            chain,
-            block_env: TempoBlockEnv { inner: block_env.inner, timestamp_millis_part: 0 },
-            hosts: hosts.into(),
-        })
+        Ok(Self { chain, block_env: B::from_owned_block_env(block_env.inner), hosts: hosts.into() })
     }
 }
 
@@ -426,10 +428,7 @@ impl<B> JsonBlockCacheDB<B> {
     }
 }
 
-impl<B> JsonBlockCacheDB<B>
-where
-    JsonBlockCacheData<B>: for<'de> Deserialize<'de>,
-{
+impl<B: ForkBlockEnv> JsonBlockCacheDB<B> {
     /// Loads the contents of the diskmap file and returns the read object
     ///
     /// # Errors
@@ -450,10 +449,7 @@ where
     }
 }
 
-impl<B> JsonBlockCacheDB<B>
-where
-    JsonBlockCacheData<B>: Serialize,
-{
+impl<B: SerializeBlockEnv> JsonBlockCacheDB<B> {
     /// Flushes the DB to disk if caching is enabled.
     #[instrument(level = "warn", skip_all, fields(path = ?self.cache_path))]
     pub fn flush(&self) {
@@ -498,14 +494,8 @@ pub struct JsonBlockCacheData<B> {
     pub data: Arc<MemDb>,
 }
 
-impl<B> Serialize for JsonBlockCacheData<B>
-where
-    BlockchainDbMeta<B>: Clone + Serialize,
-{
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
+impl<B: SerializeBlockEnv> Serialize for JsonBlockCacheData<B> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut map = serializer.serialize_map(Some(4))?;
 
         map.serialize_entry("meta", &self.meta.read().clone())?;
@@ -517,14 +507,8 @@ where
     }
 }
 
-impl<'de, B> Deserialize<'de> for JsonBlockCacheData<B>
-where
-    BlockchainDbMeta<B>: Deserialize<'de>,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
+impl<'de, B: DeserializeBlockEnv> Deserialize<'de> for JsonBlockCacheData<B> {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
         struct Data<B> {
             meta: B,
@@ -552,14 +536,9 @@ where
 /// This type intentionally does not implement `Clone` since it's intended that there's only once
 /// instance that will flush the cache.
 #[derive(Debug)]
-pub struct FlushJsonBlockCacheDB<B>(pub Arc<JsonBlockCacheDB<B>>)
-where
-    JsonBlockCacheData<B>: Serialize;
+pub struct FlushJsonBlockCacheDB<B: SerializeBlockEnv>(pub Arc<JsonBlockCacheDB<B>>);
 
-impl<B> Drop for FlushJsonBlockCacheDB<B>
-where
-    JsonBlockCacheData<B>: Serialize,
-{
+impl<B: SerializeBlockEnv> Drop for FlushJsonBlockCacheDB<B> {
     fn drop(&mut self) {
         trace!(target: "fork::cache", "flushing cache");
         self.0.flush();
