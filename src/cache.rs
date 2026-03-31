@@ -177,13 +177,13 @@ impl<B: PartialEq> PartialEq for BlockchainDbMeta<B> {
     }
 }
 
-/// A backwards compatible representation of [revm::primitives::BlockEnv]
+/// A backwards compatible representation of [BlockEnv]
 ///
 /// This prevents deserialization errors of cache files caused by breaking changes to the
-/// default [revm::primitives::BlockEnv], for example enabling an optional feature.
+/// default [BlockEnv], for example enabling an optional feature.
 /// By hand rolling deserialize impl we can prevent cache file issues
 struct BlockEnvBackwardsCompat {
-    inner: revm::context::BlockEnv,
+    inner: BlockEnv,
 }
 
 impl<'de> Deserialize<'de> for BlockEnvBackwardsCompat {
@@ -195,7 +195,7 @@ impl<'de> Deserialize<'de> for BlockEnvBackwardsCompat {
 
         // we check for any missing fields here
         if let Some(obj) = value.as_object_mut() {
-            let default_value = serde_json::to_value(revm::context::BlockEnv::default()).unwrap();
+            let default_value = serde_json::to_value(BlockEnv::default()).unwrap();
             for (key, value) in default_value.as_object().unwrap() {
                 if !obj.contains_key(key) {
                     obj.insert(key.to_string(), value.clone());
@@ -203,8 +203,7 @@ impl<'de> Deserialize<'de> for BlockEnvBackwardsCompat {
             }
         }
 
-        let cfg_env: revm::context::BlockEnv =
-            serde_json::from_value(value).map_err(serde::de::Error::custom)?;
+        let cfg_env: BlockEnv = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
         Ok(Self { inner: cfg_env })
     }
 }
