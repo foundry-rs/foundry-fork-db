@@ -1003,6 +1003,7 @@ mod tests {
     use alloy_consensus::BlockHeader;
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
+    use revm::context::BlockEnv;
     use serde::Deserialize;
     use std::{fs, path::PathBuf};
     use tiny_http::{Response, Server};
@@ -1021,7 +1022,9 @@ mod tests {
         let provider = get_http_provider(endpoint);
 
         let any_rpc_block = provider.get_block(BlockId::latest()).hashes().await.unwrap().unwrap();
-        let meta = BlockchainDbMeta::default().with_block(&any_rpc_block.inner);
+        let block_env =
+            BlockEnv { number: U256::from(any_rpc_block.header.number()), ..Default::default() };
+        let meta = BlockchainDbMeta::default().set_block_env(block_env);
 
         assert_eq!(meta.block_env.number, U256::from(any_rpc_block.header.number()));
     }
