@@ -30,7 +30,7 @@ pub struct BlockchainDb {
     /// metadata of the current config
     meta: Arc<RwLock<BlockchainDbMeta<BlockEnv>>>,
     /// the cache that can be flushed
-    cache: Arc<JsonBlockCacheDB>,
+    cache: Arc<JsonBlockCacheDB<BlockEnv>>,
 }
 
 impl BlockchainDb {
@@ -113,7 +113,7 @@ impl BlockchainDb {
     }
 
     /// Returns the inner cache
-    pub const fn cache(&self) -> &Arc<JsonBlockCacheDB> {
+    pub const fn cache(&self) -> &Arc<JsonBlockCacheDB<BlockEnv>> {
         &self.cache
     }
 
@@ -123,11 +123,30 @@ impl BlockchainDb {
     }
 }
 
+/// A helper trait for serializing the `block_env` field of [`BlockchainDbMeta`].
+///
+/// This exists because some block environment types (e.g. [`TempoBlockEnv`]) do not implement
+/// [`Serialize`] directly, so their serializable representation is handled here.
+pub trait SerializeBlockEnv {
+    fn serialize_block_env<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error>;
+}
+
+impl SerializeBlockEnv for BlockEnv {
+    fn serialize_block_env<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.serialize(serializer)
+    }
+}
+
+impl SerializeBlockEnv for TempoBlockEnv {
+    fn serialize_block_env<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.inner.serialize(serializer)
+    }
+}
+
 /// relevant identifying markers in the context of [BlockchainDb]
-#[derive(Clone, Debug, Default, Eq, Serialize)]
+#[derive(Clone, Debug, Default, Eq)]
 pub struct BlockchainDbMeta<B> {
     /// The chain of the blockchain of the block environment
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chain: Option<Chain>,
     /// The block environment
     pub block_env: B,
@@ -174,6 +193,28 @@ impl<B> BlockchainDbMeta<B> {
 impl<B: PartialEq> PartialEq for BlockchainDbMeta<B> {
     fn eq(&self, other: &Self) -> bool {
         self.block_env == other.block_env
+    }
+}
+
+impl<B: SerializeBlockEnv> Serialize for BlockchainDbMeta<B> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+
+        struct BlockEnvWrapper<'a, B>(&'a B);
+        impl<'a, B: SerializeBlockEnv> Serialize for BlockEnvWrapper<'a, B> {
+            fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                self.0.serialize_block_env(serializer)
+            }
+        }
+
+        let field_count = if self.chain.is_some() { 3 } else { 2 };
+        let mut s = serializer.serialize_struct("BlockchainDbMeta", field_count)?;
+        if let Some(chain) = &self.chain {
+            s.serialize_field("chain", chain)?;
+        }
+        s.serialize_field("block_env", &BlockEnvWrapper(&self.block_env))?;
+        s.serialize_field("hosts", &self.hosts)?;
+        s.end()
     }
 }
 
@@ -349,21 +390,46 @@ impl DatabaseCommit for MemDb {
 
 /// A DB that stores the cached content in a json file
 #[derive(Debug)]
-pub struct JsonBlockCacheDB {
+pub struct JsonBlockCacheDB<B> {
     /// Where this cache file is stored.
     ///
     /// If this is a [None] then caching is disabled
     cache_path: Option<PathBuf>,
     /// Object that's stored in a json file
-    data: JsonBlockCacheData,
+    data: JsonBlockCacheData<B>,
 }
 
-impl JsonBlockCacheDB {
+impl<B> JsonBlockCacheDB<B> {
     /// Creates a new instance.
-    fn new(meta: Arc<RwLock<BlockchainDbMeta<BlockEnv>>>, cache_path: Option<PathBuf>) -> Self {
+    fn new(meta: Arc<RwLock<BlockchainDbMeta<B>>>, cache_path: Option<PathBuf>) -> Self {
         Self { cache_path, data: JsonBlockCacheData { meta, data: Arc::new(Default::default()) } }
     }
 
+    /// Returns the [MemDb] it holds access to
+    pub const fn db(&self) -> &Arc<MemDb> {
+        &self.data.data
+    }
+
+    /// Metadata stored alongside the data
+    pub const fn meta(&self) -> &Arc<RwLock<BlockchainDbMeta<B>>> {
+        &self.data.meta
+    }
+
+    /// Returns `true` if this is a transient cache and nothing will be flushed
+    pub const fn is_transient(&self) -> bool {
+        self.cache_path.is_none()
+    }
+
+    /// Returns the cache path.
+    pub fn cache_path(&self) -> Option<&Path> {
+        self.cache_path.as_deref()
+    }
+}
+
+impl<B> JsonBlockCacheDB<B>
+where
+    JsonBlockCacheData<B>: for<'de> Deserialize<'de>,
+{
     /// Loads the contents of the diskmap file and returns the read object
     ///
     /// # Errors
@@ -382,22 +448,12 @@ impl JsonBlockCacheDB {
         trace!(target: "cache", ?path, "read json cache");
         Ok(Self { cache_path: Some(path), data })
     }
+}
 
-    /// Returns the [MemDb] it holds access to
-    pub const fn db(&self) -> &Arc<MemDb> {
-        &self.data.data
-    }
-
-    /// Metadata stored alongside the data
-    pub const fn meta(&self) -> &Arc<RwLock<BlockchainDbMeta<BlockEnv>>> {
-        &self.data.meta
-    }
-
-    /// Returns `true` if this is a transient cache and nothing will be flushed
-    pub const fn is_transient(&self) -> bool {
-        self.cache_path.is_none()
-    }
-
+impl<B> JsonBlockCacheDB<B>
+where
+    JsonBlockCacheData<B>: Serialize,
+{
     /// Flushes the DB to disk if caching is enabled.
     #[instrument(level = "warn", skip_all, fields(path = ?self.cache_path))]
     pub fn flush(&self) {
@@ -430,11 +486,6 @@ impl JsonBlockCacheDB {
 
         trace!(target: "cache", "saved json cache");
     }
-
-    /// Returns the cache path.
-    pub fn cache_path(&self) -> Option<&Path> {
-        self.cache_path.as_deref()
-    }
 }
 
 /// The Data the [JsonBlockCacheDB] can read and flush
@@ -442,12 +493,15 @@ impl JsonBlockCacheDB {
 /// This will be deserialized in a JSON object with the keys:
 /// `["meta", "accounts", "storage", "block_hashes"]`
 #[derive(Debug)]
-pub struct JsonBlockCacheData {
-    pub meta: Arc<RwLock<BlockchainDbMeta<BlockEnv>>>,
+pub struct JsonBlockCacheData<B> {
+    pub meta: Arc<RwLock<BlockchainDbMeta<B>>>,
     pub data: Arc<MemDb>,
 }
 
-impl Serialize for JsonBlockCacheData {
+impl<B> Serialize for JsonBlockCacheData<B>
+where
+    BlockchainDbMeta<B>: Clone + Serialize,
+{
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -463,20 +517,24 @@ impl Serialize for JsonBlockCacheData {
     }
 }
 
-impl<'de> Deserialize<'de> for JsonBlockCacheData {
+impl<'de, B> Deserialize<'de> for JsonBlockCacheData<B>
+where
+    BlockchainDbMeta<B>: Deserialize<'de>,
+{
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
         #[derive(Deserialize)]
-        struct Data {
-            meta: BlockchainDbMeta<BlockEnv>,
+        struct Data<B> {
+            meta: B,
             accounts: AddressHashMap<AccountInfo>,
             storage: AddressHashMap<StorageInfo>,
             block_hashes: U256Map<B256>,
         }
 
-        let Data { meta, accounts, storage, block_hashes } = Data::deserialize(deserializer)?;
+        let Data { meta, accounts, storage, block_hashes } =
+            Data::<BlockchainDbMeta<B>>::deserialize(deserializer)?;
 
         Ok(Self {
             meta: Arc::new(RwLock::new(meta)),
@@ -494,7 +552,7 @@ impl<'de> Deserialize<'de> for JsonBlockCacheData {
 /// This type intentionally does not implement `Clone` since it's intended that there's only once
 /// instance that will flush the cache.
 #[derive(Debug)]
-pub struct FlushJsonBlockCacheDB(pub Arc<JsonBlockCacheDB>);
+pub struct FlushJsonBlockCacheDB(pub Arc<JsonBlockCacheDB<BlockEnv>>);
 
 impl Drop for FlushJsonBlockCacheDB {
     fn drop(&mut self) {
@@ -577,7 +635,7 @@ mod tests {
     }
 }"#;
 
-        let cache: JsonBlockCacheData = serde_json::from_str(s).unwrap();
+        let cache: JsonBlockCacheData<BlockEnv> = serde_json::from_str(s).unwrap();
         assert_eq!(cache.data.accounts.read().len(), 1);
         assert_eq!(cache.data.storage.read().len(), 1);
         assert_eq!(cache.data.block_hashes.read().len(), 5);
@@ -643,24 +701,55 @@ mod tests {
     "block_hashes": {}
 }"#;
 
-        let cache: JsonBlockCacheData = serde_json::from_str(s).unwrap();
+        let cache: JsonBlockCacheData<BlockEnv> = serde_json::from_str(s).unwrap();
         assert_eq!(cache.data.accounts.read().len(), 1);
 
         let _s = serde_json::to_string(&cache).unwrap();
     }
 
     #[test]
+    fn roundtrip_meta_block_env() {
+        let meta = BlockchainDbMeta {
+            chain: Some(Chain::mainnet()),
+            block_env: BlockEnv { number: U256::from(1u64), ..Default::default() },
+            hosts: BTreeSet::from(["eth-mainnet.alchemyapi.io".to_string()]),
+        };
+        let json = serde_json::to_string(&meta).unwrap();
+        let recovered: BlockchainDbMeta<BlockEnv> = serde_json::from_str(&json).unwrap();
+        assert_eq!(meta, recovered);
+    }
+
+    #[test]
+    fn roundtrip_meta_tempo_block_env() {
+        let meta = BlockchainDbMeta {
+            chain: Some(Chain::mainnet()),
+            block_env: TempoBlockEnv {
+                inner: BlockEnv { number: U256::from(1u64), ..Default::default() },
+                timestamp_millis_part: 42,
+            },
+            hosts: BTreeSet::from(["eth-mainnet.alchemyapi.io".to_string()]),
+        };
+        let json = serde_json::to_string(&meta).unwrap();
+        let recovered: BlockchainDbMeta<TempoBlockEnv> = serde_json::from_str(&json).unwrap();
+        // timestamp_millis_part is not serialized, so it resets to 0 on deserialization
+        assert_eq!(meta.block_env.inner, recovered.block_env.inner);
+        assert_eq!(recovered.block_env.timestamp_millis_part, 0);
+    }
+
+    #[test]
     fn can_return_cache_path_if_set() {
         // set
-        let cache_db = JsonBlockCacheDB::new(
+        let cache_db = JsonBlockCacheDB::<BlockEnv>::new(
             Arc::new(RwLock::new(BlockchainDbMeta::default())),
             Some(PathBuf::from("/tmp/foo")),
         );
         assert_eq!(Some(Path::new("/tmp/foo")), cache_db.cache_path());
 
         // unset
-        let cache_db =
-            JsonBlockCacheDB::new(Arc::new(RwLock::new(BlockchainDbMeta::default())), None);
+        let cache_db = JsonBlockCacheDB::<BlockEnv>::new(
+            Arc::new(RwLock::new(BlockchainDbMeta::default())),
+            None,
+        );
         assert_eq!(None, cache_db.cache_path());
     }
 }
