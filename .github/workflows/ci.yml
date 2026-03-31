@@ -24,11 +24,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust: ["stable", "nightly", "1.91"] # MSRV
+        rust: ["stable", "nightly", "1.93"] # MSRV
         flags: ["--no-default-features", "", "--all-features"]
         exclude:
           # Some features have higher MSRV.
-          - rust: "1.91" # MSRV
+          - rust: "1.93" # MSRV
             flags: "--all-features"
     steps:
       - uses: actions/checkout@v6
@@ -39,15 +39,15 @@ jobs:
           toolchain: ${{ matrix.rust }}
       # Only run tests on latest stable and above
       - name: Install cargo-nextest
-        if: ${{ matrix.rust != '1.91' }} # MSRV
-        uses: taiki-e/install-action@0d865d5cc6d507df4765f1f866bfae8bab4e2a73 # master
+        if: ${{ matrix.rust != '1.93' }} # MSRV
+        uses: taiki-e/install-action@e9e8e031bcd90cdbe8ac6bb1d376f8596e587fbf # master
         with:
           tool: nextest
       - name: build
-        if: ${{ matrix.rust == '1.91' }} # MSRV
+        if: ${{ matrix.rust == '1.93' }} # MSRV
         run: cargo build --workspace ${{ matrix.flags }}
       - name: test
-        if: ${{ matrix.rust != '1.91' }} # MSRV
+        if: ${{ matrix.rust != '1.93' }} # MSRV
         run: cargo nextest run --workspace ${{ matrix.flags }}
 
   doctest:
@@ -80,7 +80,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # master
         with:
           toolchain: stable
-      - uses: taiki-e/install-action@0d865d5cc6d507df4765f1f866bfae8bab4e2a73 # master
+      - uses: taiki-e/install-action@e9e8e031bcd90cdbe8ac6bb1d376f8596e587fbf # master
         with:
           tool: cargo-hack
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2

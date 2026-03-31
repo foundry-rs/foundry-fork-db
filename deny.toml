@@ -8,7 +8,7 @@ ignore = [
 
 [bans]
 multiple-versions = "warn"
-wildcards = "deny"
+wildcards = "warn"
 highlight = "all"
 
 [licenses]
@@ -57,3 +57,9 @@ license-files = [{ path = "LICENSE", hash = 0x001c7e6c }]
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
+allow-git = [
+    "https://github.com/alloy-rs/alloy",
+    "https://github.com/alloy-rs/evm",
+    "https://github.com/tempoxyz/tempo",
+    "https://github.com/stevencartavia/reth",
+]

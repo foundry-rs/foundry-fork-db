@@ -1,19 +1,11 @@
 //! Cache related abstraction
 
 use alloy_chains::Chain;
-use alloy_consensus::BlockHeader;
-use alloy_hardforks::EthereumHardfork;
 use alloy_primitives::{map::U256Map, Address, B256, U256};
-use alloy_provider::network::TransactionResponse;
 use parking_lot::RwLock;
 use revm::{
     context::BlockEnv,
-    context_interface::block::BlobExcessGasAndPrice,
-    primitives::{
-        eip4844::{BLOB_BASE_FEE_UPDATE_FRACTION_CANCUN, BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE},
-        map::AddressHashMap,
-        StorageKeyMap, KECCAK_EMPTY,
-    },
+    primitives::{map::AddressHashMap, StorageKeyMap, KECCAK_EMPTY},
     state::{Account, AccountInfo, AccountStatus},
     DatabaseCommit,
 };
@@ -25,6 +17,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+use tempo_revm::TempoBlockEnv;
 use url::Url;
 
 pub type StorageInfo = StorageKeyMap<U256>;
@@ -35,7 +28,7 @@ pub struct BlockchainDb {
     /// Contains all the data
     db: Arc<MemDb>,
     /// metadata of the current config
-    meta: Arc<RwLock<BlockchainDbMeta>>,
+    meta: Arc<RwLock<BlockchainDbMeta<BlockEnv>>>,
     /// the cache that can be flushed
     cache: Arc<JsonBlockCacheDB>,
 }
@@ -51,7 +44,7 @@ impl BlockchainDb {
     ///   - the file the `cache_path` points to, does not exist
     ///   - the file contains malformed data, or if it couldn't be read
     ///   - the provided `meta` differs from [BlockchainDbMeta] that's stored on disk
-    pub fn new(meta: BlockchainDbMeta, cache_path: Option<PathBuf>) -> Self {
+    pub fn new(meta: BlockchainDbMeta<BlockEnv>, cache_path: Option<PathBuf>) -> Self {
         Self::new_db(meta, cache_path, false)
     }
 
@@ -66,11 +59,15 @@ impl BlockchainDb {
     ///   - the file the `cache_path` points to, does not exist
     ///   - the file contains malformed data, or if it couldn't be read
     ///   - the provided `meta` differs from [BlockchainDbMeta] that's stored on disk
-    pub fn new_skip_check(meta: BlockchainDbMeta, cache_path: Option<PathBuf>) -> Self {
+    pub fn new_skip_check(meta: BlockchainDbMeta<BlockEnv>, cache_path: Option<PathBuf>) -> Self {
         Self::new_db(meta, cache_path, true)
     }
 
-    fn new_db(meta: BlockchainDbMeta, cache_path: Option<PathBuf>, skip_check: bool) -> Self {
+    fn new_db(
+        meta: BlockchainDbMeta<BlockEnv>,
+        cache_path: Option<PathBuf>,
+        skip_check: bool,
+    ) -> Self {
         trace!(target: "forge::cache", cache=?cache_path, "initialising blockchain db");
         // read cache and check if metadata matches
         let cache = cache_path
@@ -111,7 +108,7 @@ impl BlockchainDb {
     }
 
     /// Returns the Env related metadata
-    pub const fn meta(&self) -> &Arc<RwLock<BlockchainDbMeta>> {
+    pub const fn meta(&self) -> &Arc<RwLock<BlockchainDbMeta<BlockEnv>>> {
         &self.meta
     }
 
@@ -128,56 +125,25 @@ impl BlockchainDb {
 
 /// relevant identifying markers in the context of [BlockchainDb]
 #[derive(Clone, Debug, Default, Eq, Serialize)]
-pub struct BlockchainDbMeta {
+pub struct BlockchainDbMeta<B> {
     /// The chain of the blockchain of the block environment
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chain: Option<Chain>,
     /// The block environment
-    pub block_env: BlockEnv,
+    pub block_env: B,
     /// All the hosts used to connect to
     pub hosts: BTreeSet<String>,
 }
 
-impl BlockchainDbMeta {
+impl<B> BlockchainDbMeta<B> {
     /// Creates a new instance
-    pub fn new(block_env: BlockEnv, url: String) -> Self {
+    pub fn new(block_env: B, url: String) -> Self {
         let host = Url::parse(&url)
             .ok()
             .and_then(|url| url.host().map(|host| host.to_string()))
             .unwrap_or(url);
 
         Self { chain: None, block_env, hosts: BTreeSet::from([host]) }
-    }
-
-    /// Sets the [BlockEnv] of this instance using the provided [Chain] and [alloy_rpc_types::Block]
-    pub fn with_block<T: TransactionResponse, H: BlockHeader>(
-        mut self,
-        block: &alloy_rpc_types::Block<T, H>,
-    ) -> Self {
-        let blob_base_fee_update_fraction =
-            self.chain.map_or(BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE, |chain| {
-                match EthereumHardfork::from_chain_and_timestamp(chain, block.header.timestamp()) {
-                    Some(EthereumHardfork::Cancun) => BLOB_BASE_FEE_UPDATE_FRACTION_CANCUN,
-                    _ => BLOB_BASE_FEE_UPDATE_FRACTION_PRAGUE,
-                }
-            });
-
-        self.block_env = BlockEnv {
-            number: U256::from(block.header.number()),
-            beneficiary: block.header.beneficiary(),
-            timestamp: U256::from(block.header.timestamp()),
-            difficulty: U256::from(block.header.difficulty()),
-            basefee: block.header.base_fee_per_gas().unwrap_or_default(),
-            gas_limit: block.header.gas_limit(),
-            prevrandao: block.header.mix_hash(),
-            blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(
-                block.header.excess_blob_gas().unwrap_or_default(),
-                blob_base_fee_update_fraction,
-            )),
-            slot_num: Default::default(),
-        };
-
-        self
     }
 
     /// Infers the host from the provided url and adds it to the set of hosts
@@ -196,8 +162,8 @@ impl BlockchainDbMeta {
         self
     }
 
-    /// Sets the [BlockEnv] of this instance
-    pub const fn set_block_env(mut self, block_env: revm::context::BlockEnv) -> Self {
+    /// Sets the block environment of this instance
+    pub const fn set_block_env(mut self, block_env: B) -> Self {
         self.block_env = block_env;
         self
     }
@@ -205,75 +171,95 @@ impl BlockchainDbMeta {
 
 // ignore hosts to not invalidate the cache when different endpoints are used, as it's commonly the
 // case for http vs ws endpoints
-impl PartialEq for BlockchainDbMeta {
+impl<B: PartialEq> PartialEq for BlockchainDbMeta<B> {
     fn eq(&self, other: &Self) -> bool {
         self.block_env == other.block_env
     }
 }
 
-impl<'de> Deserialize<'de> for BlockchainDbMeta {
+/// A backwards compatible representation of [BlockEnv]
+///
+/// This prevents deserialization errors of cache files caused by breaking changes to the
+/// default [BlockEnv], for example enabling an optional feature.
+/// By hand rolling deserialize impl we can prevent cache file issues
+struct BlockEnvBackwardsCompat {
+    inner: BlockEnv,
+}
+
+impl<'de> Deserialize<'de> for BlockEnvBackwardsCompat {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        /// A backwards compatible representation of [revm::primitives::BlockEnv]
-        ///
-        /// This prevents deserialization errors of cache files caused by breaking changes to the
-        /// default [revm::primitives::BlockEnv], for example enabling an optional feature.
-        /// By hand rolling deserialize impl we can prevent cache file issues
-        struct BlockEnvBackwardsCompat {
-            inner: revm::context::BlockEnv,
-        }
+        let mut value = serde_json::Value::deserialize(deserializer)?;
 
-        impl<'de> Deserialize<'de> for BlockEnvBackwardsCompat {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: Deserializer<'de>,
-            {
-                let mut value = serde_json::Value::deserialize(deserializer)?;
-
-                // we check for any missing fields here
-                if let Some(obj) = value.as_object_mut() {
-                    let default_value =
-                        serde_json::to_value(revm::context::BlockEnv::default()).unwrap();
-                    for (key, value) in default_value.as_object().unwrap() {
-                        if !obj.contains_key(key) {
-                            obj.insert(key.to_string(), value.clone());
-                        }
-                    }
+        // we check for any missing fields here
+        if let Some(obj) = value.as_object_mut() {
+            let default_value = serde_json::to_value(BlockEnv::default()).unwrap();
+            for (key, value) in default_value.as_object().unwrap() {
+                if !obj.contains_key(key) {
+                    obj.insert(key.to_string(), value.clone());
                 }
-
-                let cfg_env: revm::context::BlockEnv =
-                    serde_json::from_value(value).map_err(serde::de::Error::custom)?;
-                Ok(Self { inner: cfg_env })
             }
         }
 
-        // custom deserialize impl to not break existing cache files
+        let cfg_env: BlockEnv = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
+        Ok(Self { inner: cfg_env })
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum Hosts {
+    Multi(BTreeSet<String>),
+    Single(String),
+}
+
+impl From<Hosts> for BTreeSet<String> {
+    fn from(hosts: Hosts) -> Self {
+        match hosts {
+            Hosts::Multi(hosts) => hosts,
+            Hosts::Single(host) => Self::from([host]),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for BlockchainDbMeta<BlockEnv> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
         #[derive(Deserialize)]
         struct Meta {
             chain: Option<Chain>,
             block_env: BlockEnvBackwardsCompat,
-            /// all the hosts used to connect to
             #[serde(alias = "host")]
             hosts: Hosts,
         }
 
+        let Meta { chain, block_env, hosts } = Meta::deserialize(deserializer)?;
+        Ok(Self { chain, block_env: block_env.inner, hosts: hosts.into() })
+    }
+}
+
+impl<'de> Deserialize<'de> for BlockchainDbMeta<TempoBlockEnv> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
         #[derive(Deserialize)]
-        #[serde(untagged)]
-        enum Hosts {
-            Multi(BTreeSet<String>),
-            Single(String),
+        struct Meta {
+            chain: Option<Chain>,
+            block_env: BlockEnvBackwardsCompat,
+            #[serde(alias = "host")]
+            hosts: Hosts,
         }
 
         let Meta { chain, block_env, hosts } = Meta::deserialize(deserializer)?;
         Ok(Self {
             chain,
-            block_env: block_env.inner,
-            hosts: match hosts {
-                Hosts::Multi(hosts) => hosts,
-                Hosts::Single(host) => BTreeSet::from([host]),
-            },
+            block_env: TempoBlockEnv { inner: block_env.inner, timestamp_millis_part: 0 },
+            hosts: hosts.into(),
         })
     }
 }
@@ -374,7 +360,7 @@ pub struct JsonBlockCacheDB {
 
 impl JsonBlockCacheDB {
     /// Creates a new instance.
-    fn new(meta: Arc<RwLock<BlockchainDbMeta>>, cache_path: Option<PathBuf>) -> Self {
+    fn new(meta: Arc<RwLock<BlockchainDbMeta<BlockEnv>>>, cache_path: Option<PathBuf>) -> Self {
         Self { cache_path, data: JsonBlockCacheData { meta, data: Arc::new(Default::default()) } }
     }
 
@@ -403,7 +389,7 @@ impl JsonBlockCacheDB {
     }
 
     /// Metadata stored alongside the data
-    pub const fn meta(&self) -> &Arc<RwLock<BlockchainDbMeta>> {
+    pub const fn meta(&self) -> &Arc<RwLock<BlockchainDbMeta<BlockEnv>>> {
         &self.data.meta
     }
 
@@ -457,7 +443,7 @@ impl JsonBlockCacheDB {
 /// `["meta", "accounts", "storage", "block_hashes"]`
 #[derive(Debug)]
 pub struct JsonBlockCacheData {
-    pub meta: Arc<RwLock<BlockchainDbMeta>>,
+    pub meta: Arc<RwLock<BlockchainDbMeta<BlockEnv>>>,
     pub data: Arc<MemDb>,
 }
 
@@ -484,7 +470,7 @@ impl<'de> Deserialize<'de> for JsonBlockCacheData {
     {
         #[derive(Deserialize)]
         struct Data {
-            meta: BlockchainDbMeta,
+            meta: BlockchainDbMeta<BlockEnv>,
             accounts: AddressHashMap<AccountInfo>,
             storage: AddressHashMap<StorageInfo>,
             block_hashes: U256Map<B256>,
