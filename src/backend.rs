@@ -1,7 +1,7 @@
 //! Smart caching and deduplication of requests when using a forking provider.
 
 use crate::{
-    cache::{BlockchainDb, FlushJsonBlockCacheDB, MemDb, StorageInfo},
+    cache::{BlockchainDb, FlushJsonBlockCacheDB, JsonBlockCacheData, MemDb, StorageInfo},
     error::{DatabaseError, DatabaseResult},
 };
 use alloy_primitives::{keccak256, map::U256Map, Address, Bytes, B256, U256};
@@ -19,6 +19,7 @@ use futures::{
     Future, FutureExt,
 };
 use revm::{
+    context::BlockEnv,
     database::DatabaseRef,
     primitives::{
         map::{hash_map::Entry, AddressHashMap, HashMap},
@@ -26,6 +27,7 @@ use revm::{
     },
     state::{AccountInfo, Bytecode},
 };
+use serde::Serialize;
 use std::{
     collections::VecDeque,
     fmt,
@@ -173,10 +175,10 @@ enum BackendRequest<N: Network = AnyNetwork> {
 /// This handler will remain active as long as it is reachable (request channel still open) and
 /// requests are in progress.
 #[must_use = "futures do nothing unless polled"]
-pub struct BackendHandler<N: Network = AnyNetwork> {
+pub struct BackendHandler<N: Network = AnyNetwork, B = BlockEnv> {
     provider: DynProvider<N>,
     /// Stores all the data.
-    db: BlockchainDb,
+    db: BlockchainDb<B>,
     /// Requests currently in progress
     pending_requests: Vec<ProviderRequest<eyre::Report, N>>,
     /// Listeners that wait for a `get_account` related response
@@ -196,10 +198,14 @@ pub struct BackendHandler<N: Network = AnyNetwork> {
     account_fetch_mode: Arc<AtomicU8>,
 }
 
-impl<N: Network> BackendHandler<N> {
+impl<N: Network, B> BackendHandler<N, B>
+where
+    B: Clone + PartialEq + Send + Sync + 'static,
+    JsonBlockCacheData<B>: for<'de> serde::Deserialize<'de>,
+{
     fn new(
         provider: DynProvider<N>,
-        db: BlockchainDb,
+        db: BlockchainDb<B>,
         rx: UnboundedReceiver<BackendRequest<N>>,
         block_id: Option<BlockId>,
     ) -> Self {
@@ -489,7 +495,11 @@ impl<N: Network> BackendHandler<N> {
     }
 }
 
-impl<N: Network> Future for BackendHandler<N> {
+impl<N: Network, B> Future for BackendHandler<N, B>
+where
+    B: Clone + PartialEq + Send + Sync + 'static,
+    JsonBlockCacheData<B>: for<'de> serde::Deserialize<'de>,
+{
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -731,20 +741,27 @@ impl BlockingMode {
 // This prevents issues (hangs) we ran into were the [SharedBackend] itself is called from a spawned
 // task.
 #[derive(Clone, Debug)]
-pub struct SharedBackend<N: Network = AnyNetwork> {
+pub struct SharedBackend<N: Network = AnyNetwork, B = BlockEnv>
+where
+    JsonBlockCacheData<B>: Serialize,
+{
     /// channel used for sending commands related to database operations
     backend: UnboundedSender<BackendRequest<N>>,
     /// Ensures that the underlying cache gets flushed once the last `SharedBackend` is dropped.
     ///
     /// There is only one instance of the type, so as soon as the last `SharedBackend` is deleted,
-    /// `FlushJsonBlockCacheDB` is also deleted and the cache is flushed.
-    cache: Arc<FlushJsonBlockCacheDB>,
+    /// `FlushJsonBlockCacheDB<B>` is also deleted and the cache is flushed.
+    cache: Arc<FlushJsonBlockCacheDB<B>>,
 
     /// The mode for the `SharedBackend` to block in place or not
     blocking_mode: BlockingMode,
 }
 
-impl<N: Network> SharedBackend<N> {
+impl<N: Network, B> SharedBackend<N, B>
+where
+    B: Clone + PartialEq + Send + Sync + 'static,
+    JsonBlockCacheData<B>: for<'de> serde::Deserialize<'de> + Serialize,
+{
     /// _Spawns_ a new `BackendHandler` on a `tokio::task` that listens for requests from any
     /// `SharedBackend`. Missing values get inserted in the `db`.
     ///
@@ -752,7 +769,7 @@ impl<N: Network> SharedBackend<N> {
     /// dropped.
     pub async fn spawn_backend<P: Provider<N> + 'static>(
         provider: P,
-        db: BlockchainDb,
+        db: BlockchainDb<B>,
         pin_block: Option<BlockId>,
     ) -> Self {
         let (shared, handler) = Self::new(provider, db, pin_block);
@@ -766,7 +783,7 @@ impl<N: Network> SharedBackend<N> {
     /// its own `tokio::Runtime`
     pub fn spawn_backend_thread<P: Provider<N> + 'static>(
         provider: P,
-        db: BlockchainDb,
+        db: BlockchainDb<B>,
         pin_block: Option<BlockId>,
     ) -> Self {
         let (shared, handler) = Self::new(provider, db, pin_block);
@@ -792,9 +809,9 @@ impl<N: Network> SharedBackend<N> {
     /// Returns a new `SharedBackend` and the `BackendHandler`
     pub fn new<P: Provider<N> + 'static>(
         provider: P,
-        db: BlockchainDb,
+        db: BlockchainDb<B>,
         pin_block: Option<BlockId>,
-    ) -> (Self, BackendHandler<N>) {
+    ) -> (Self, BackendHandler<N, B>) {
         let (backend, backend_rx) = unbounded();
         let cache = Arc::new(FlushJsonBlockCacheDB(Arc::clone(db.cache())));
         let handler = BackendHandler::new(provider.erased(), db, backend_rx, pin_block);
@@ -958,7 +975,11 @@ impl<N: Network> SharedBackend<N> {
     }
 }
 
-impl<N: Network> DatabaseRef for SharedBackend<N> {
+impl<N: Network, B> DatabaseRef for SharedBackend<N, B>
+where
+    B: Clone + PartialEq + Send + Sync + 'static,
+    JsonBlockCacheData<B>: for<'de> serde::Deserialize<'de> + Serialize,
+{
     type Error = DatabaseError;
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
@@ -1034,7 +1055,7 @@ mod tests {
         let Some(endpoint) = ENDPOINT else { return };
 
         let provider = get_http_provider(endpoint);
-        let meta = BlockchainDbMeta::new(Default::default(), endpoint.to_string());
+        let meta = BlockchainDbMeta::new(BlockEnv::default(), endpoint.to_string());
 
         let db = BlockchainDb::new(meta, None);
         let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
@@ -1082,7 +1103,7 @@ mod tests {
         let Some(endpoint) = ENDPOINT else { return };
 
         let provider = get_http_provider(endpoint);
-        let meta = BlockchainDbMeta::new(Default::default(), endpoint.to_string());
+        let meta = BlockchainDbMeta::new(BlockEnv::default(), endpoint.to_string());
 
         let db = BlockchainDb::new(meta, None);
         let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
@@ -1145,7 +1166,7 @@ mod tests {
         let Some(endpoint) = ENDPOINT else { return };
 
         let provider = get_http_provider(endpoint);
-        let meta = BlockchainDbMeta::new(Default::default(), endpoint.to_string());
+        let meta = BlockchainDbMeta::new(BlockEnv::default(), endpoint.to_string());
 
         let db = BlockchainDb::new(meta, None);
         let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
@@ -1204,7 +1225,7 @@ mod tests {
         let Some(endpoint) = ENDPOINT else { return };
 
         let provider = get_http_provider(endpoint);
-        let meta = BlockchainDbMeta::new(Default::default(), endpoint.to_string());
+        let meta = BlockchainDbMeta::new(BlockEnv::default(), endpoint.to_string());
 
         let db = BlockchainDb::new(meta, None);
         let backend = SharedBackend::spawn_backend(Arc::new(provider), db.clone(), None).await;
@@ -1253,7 +1274,7 @@ mod tests {
         let Some(endpoint) = ENDPOINT else { return };
 
         let provider = get_http_provider(endpoint);
-        let meta = BlockchainDbMeta::new(Default::default(), endpoint.to_string());
+        let meta = BlockchainDbMeta::new(BlockEnv::default(), endpoint.to_string());
 
         // create a temporary file
         fs::copy("test-data/storage.json", "test-data/storage-tmp.json").unwrap();
@@ -1408,7 +1429,7 @@ mod tests {
         });
 
         let provider = get_http_provider(&endpoint);
-        let meta = BlockchainDbMeta::new(Default::default(), endpoint.to_string());
+        let meta = BlockchainDbMeta::new(BlockEnv::default(), endpoint.to_string());
 
         let db = BlockchainDb::new(meta, None);
         let provider_inner = provider.clone();

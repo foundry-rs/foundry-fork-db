@@ -24,16 +24,20 @@ pub type StorageInfo = StorageKeyMap<U256>;
 
 /// A shareable Block database
 #[derive(Clone, Debug)]
-pub struct BlockchainDb {
+pub struct BlockchainDb<B> {
     /// Contains all the data
     db: Arc<MemDb>,
     /// metadata of the current config
-    meta: Arc<RwLock<BlockchainDbMeta<BlockEnv>>>,
+    meta: Arc<RwLock<BlockchainDbMeta<B>>>,
     /// the cache that can be flushed
-    cache: Arc<JsonBlockCacheDB<BlockEnv>>,
+    cache: Arc<JsonBlockCacheDB<B>>,
 }
 
-impl BlockchainDb {
+impl<B> BlockchainDb<B>
+where
+    B: Clone + PartialEq + Send + Sync + 'static,
+    JsonBlockCacheData<B>: for<'de> Deserialize<'de>,
+{
     /// Creates a new instance of the [BlockchainDb].
     ///
     /// If a `cache_path` is provided it attempts to load a previously stored [JsonBlockCacheData]
@@ -44,7 +48,7 @@ impl BlockchainDb {
     ///   - the file the `cache_path` points to, does not exist
     ///   - the file contains malformed data, or if it couldn't be read
     ///   - the provided `meta` differs from [BlockchainDbMeta] that's stored on disk
-    pub fn new(meta: BlockchainDbMeta<BlockEnv>, cache_path: Option<PathBuf>) -> Self {
+    pub fn new(meta: BlockchainDbMeta<B>, cache_path: Option<PathBuf>) -> Self {
         Self::new_db(meta, cache_path, false)
     }
 
@@ -59,15 +63,11 @@ impl BlockchainDb {
     ///   - the file the `cache_path` points to, does not exist
     ///   - the file contains malformed data, or if it couldn't be read
     ///   - the provided `meta` differs from [BlockchainDbMeta] that's stored on disk
-    pub fn new_skip_check(meta: BlockchainDbMeta<BlockEnv>, cache_path: Option<PathBuf>) -> Self {
+    pub fn new_skip_check(meta: BlockchainDbMeta<B>, cache_path: Option<PathBuf>) -> Self {
         Self::new_db(meta, cache_path, true)
     }
 
-    fn new_db(
-        meta: BlockchainDbMeta<BlockEnv>,
-        cache_path: Option<PathBuf>,
-        skip_check: bool,
-    ) -> Self {
+    fn new_db(meta: BlockchainDbMeta<B>, cache_path: Option<PathBuf>, skip_check: bool) -> Self {
         trace!(target: "forge::cache", cache=?cache_path, "initialising blockchain db");
         // read cache and check if metadata matches
         let cache = cache_path
@@ -108,12 +108,12 @@ impl BlockchainDb {
     }
 
     /// Returns the Env related metadata
-    pub const fn meta(&self) -> &Arc<RwLock<BlockchainDbMeta<BlockEnv>>> {
+    pub const fn meta(&self) -> &Arc<RwLock<BlockchainDbMeta<B>>> {
         &self.meta
     }
 
     /// Returns the inner cache
-    pub const fn cache(&self) -> &Arc<JsonBlockCacheDB<BlockEnv>> {
+    pub const fn cache(&self) -> &Arc<JsonBlockCacheDB<B>> {
         &self.cache
     }
 
@@ -552,9 +552,14 @@ where
 /// This type intentionally does not implement `Clone` since it's intended that there's only once
 /// instance that will flush the cache.
 #[derive(Debug)]
-pub struct FlushJsonBlockCacheDB(pub Arc<JsonBlockCacheDB<BlockEnv>>);
+pub struct FlushJsonBlockCacheDB<B>(pub Arc<JsonBlockCacheDB<B>>)
+where
+    JsonBlockCacheData<B>: Serialize;
 
-impl Drop for FlushJsonBlockCacheDB {
+impl<B> Drop for FlushJsonBlockCacheDB<B>
+where
+    JsonBlockCacheData<B>: Serialize,
+{
     fn drop(&mut self) {
         trace!(target: "fork::cache", "flushing cache");
         self.0.flush();
