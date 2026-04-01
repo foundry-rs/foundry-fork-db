@@ -13,7 +13,7 @@ use alloy_provider::{
 use alloy_rpc_types::BlockId;
 use eyre::WrapErr;
 use futures::{
-    Future, FutureExt,
+    FutureExt,
     channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded},
     pin_mut,
     stream::Stream,
@@ -31,7 +31,6 @@ use revm::{
 use std::{
     collections::VecDeque,
     fmt,
-    future::IntoFuture,
     path::Path,
     pin::Pin,
     sync::{
@@ -237,7 +236,7 @@ impl<N: Network, B: ForkBlockEnv> BackendHandler<N, B> {
                 }
             }
             BackendRequest::BlockHash(number, sender) => {
-                let hash = self.db.block_hashes().read().get(&U256::from(number)).cloned();
+                let hash = self.db.block_hashes().read().get(&U256::from(number)).copied();
                 if let Some(hash) = hash {
                     let _ = sender.send(Ok(hash));
                 } else {
@@ -1005,7 +1004,6 @@ mod tests {
     use alloy_consensus::BlockHeader;
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
-    use revm::context::BlockEnv;
     use serde::Deserialize;
     use std::{fs, path::PathBuf};
     use tiny_http::{Response, Server};
@@ -1100,6 +1098,7 @@ mod tests {
             account_id: None,
         };
         let mut account_data = AddressData::default();
+        #[allow(clippy::redundant_clone)]
         account_data.insert(address, new_acc.clone());
 
         backend.insert_or_update_address(account_data);
@@ -1291,7 +1290,7 @@ mod tests {
         new_acc.code = Some(Bytecode::new_raw(([10, 20, 30, 40]).into()));
 
         let mut account_data = AddressData::default();
-        account_data.insert(address, new_acc.clone());
+        account_data.insert(address, new_acc);
 
         backend.insert_or_update_address(account_data);
 
