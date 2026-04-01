@@ -2,7 +2,7 @@
 name = "foundry-fork-db"
 description = "Fork database used by Foundry"
 version = "0.24.1"
-edition = "2021"
+edition = "2024"
 # Remember to update clippy.toml as well
 rust-version = "1.93"
 authors = ["Foundry Contributors"]
@@ -12,7 +12,6 @@ repository = "https://github.com/foundry-rs/foundry-fork-db"
 
 [lints]
 rust.unused_must_use = "deny"
-rust.rust_2018_idioms = { level = "deny", priority = -1 }
 rustdoc.all = "warn"
 
 [lints.clippy]

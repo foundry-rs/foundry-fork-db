@@ -1,30 +1,30 @@
 //! Smart caching and deduplication of requests when using a forking provider.
 
 use crate::{
+    SerializeBlockEnv,
     cache::{BlockchainDb, FlushJsonBlockCacheDB, ForkBlockEnv, MemDb, StorageInfo},
     error::{DatabaseError, DatabaseResult},
-    SerializeBlockEnv,
 };
-use alloy_primitives::{keccak256, map::U256Map, Address, Bytes, B256, U256};
+use alloy_primitives::{Address, B256, Bytes, U256, keccak256, map::U256Map};
 use alloy_provider::{
-    network::{primitives::HeaderResponse, AnyNetwork, BlockResponse},
     DynProvider, Network, Provider,
+    network::{AnyNetwork, BlockResponse, primitives::HeaderResponse},
 };
 use alloy_rpc_types::BlockId;
 use eyre::WrapErr;
 use futures::{
-    channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
+    Future, FutureExt,
+    channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded},
     pin_mut,
     stream::Stream,
     task::{Context, Poll},
-    Future, FutureExt,
 };
 use revm::{
     context::BlockEnv,
     database::DatabaseRef,
     primitives::{
-        map::{hash_map::Entry, AddressHashMap, HashMap},
         KECCAK_EMPTY,
+        map::{AddressHashMap, HashMap, hash_map::Entry},
     },
     state::{AccountInfo, Bytecode},
 };
@@ -35,9 +35,9 @@ use std::{
     path::Path,
     pin::Pin,
     sync::{
-        atomic::{AtomicU8, Ordering},
-        mpsc::{channel as oneshot_channel, Sender as OneshotSender},
         Arc,
+        atomic::{AtomicU8, Ordering},
+        mpsc::{Sender as OneshotSender, channel as oneshot_channel},
     },
 };
 use tokio::select;
@@ -1010,7 +1010,7 @@ mod tests {
     use std::{fs, path::PathBuf};
     use tiny_http::{Response, Server};
 
-    pub fn get_http_provider(endpoint: &str) -> impl Provider<AnyNetwork> + Clone {
+    pub fn get_http_provider(endpoint: &str) -> impl Provider<AnyNetwork> + Clone + use<> {
         ProviderBuilder::new()
             .network::<AnyNetwork>()
             .connect_client(ClientBuilder::default().http(endpoint.parse().unwrap()))
