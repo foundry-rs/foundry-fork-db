@@ -1097,9 +1097,10 @@ mod tests {
             code_hash: KECCAK_EMPTY,
             account_id: None,
         };
+        let expected_nonce = new_acc.nonce;
+        let expected_balance = new_acc.balance;
         let mut account_data = AddressData::default();
-        #[allow(clippy::redundant_clone)]
-        account_data.insert(address, new_acc.clone());
+        account_data.insert(address, new_acc);
 
         backend.insert_or_update_address(account_data);
 
@@ -1111,11 +1112,11 @@ mod tests {
                 match result_address {
                     Some(acc) => {
                         assert_eq!(
-                            acc.nonce, new_acc.nonce,
+                            acc.nonce, expected_nonce,
                             "The nonce was not changed in instance of index {idx}"
                         );
                         assert_eq!(
-                            acc.balance, new_acc.balance,
+                            acc.balance, expected_balance,
                             "The balance was not changed in instance of index {idx}"
                         );
 
@@ -1126,11 +1127,11 @@ mod tests {
                         };
 
                         assert_eq!(
-                            db_address.nonce, new_acc.nonce,
+                            db_address.nonce, expected_nonce,
                             "The nonce was not changed in instance of index {idx}"
                         );
                         assert_eq!(
-                            db_address.balance, new_acc.balance,
+                            db_address.balance, expected_balance,
                             "The balance was not changed in instance of index {idx}"
                         );
                     }
