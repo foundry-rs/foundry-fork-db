@@ -40,7 +40,7 @@ jobs:
       # Only run tests on latest stable and above
       - name: Install cargo-nextest
         if: ${{ matrix.rust != '1.93' }} # MSRV
-        uses: taiki-e/install-action@e9e8e031bcd90cdbe8ac6bb1d376f8596e587fbf # master
+        uses: taiki-e/install-action@94cb46f8d6e437890146ffbd78a778b78e623fb2 # master
         with:
           tool: nextest
       - name: build
@@ -80,7 +80,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # master
         with:
           toolchain: stable
-      - uses: taiki-e/install-action@e9e8e031bcd90cdbe8ac6bb1d376f8596e587fbf # master
+      - uses: taiki-e/install-action@94cb46f8d6e437890146ffbd78a778b78e623fb2 # master
         with:
           tool: cargo-hack
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2
