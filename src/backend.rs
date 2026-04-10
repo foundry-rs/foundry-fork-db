@@ -1,43 +1,42 @@
 //! Smart caching and deduplication of requests when using a forking provider.
 
 use crate::{
+    SerializeBlockEnv,
     cache::{BlockchainDb, FlushJsonBlockCacheDB, ForkBlockEnv, MemDb, StorageInfo},
     error::{DatabaseError, DatabaseResult},
-    SerializeBlockEnv,
 };
-use alloy_primitives::{keccak256, map::U256Map, Address, Bytes, B256, U256};
+use alloy_primitives::{Address, B256, Bytes, U256, keccak256, map::U256Map};
 use alloy_provider::{
-    network::{primitives::HeaderResponse, AnyNetwork, BlockResponse},
     DynProvider, Network, Provider,
+    network::{AnyNetwork, BlockResponse, primitives::HeaderResponse},
 };
 use alloy_rpc_types::BlockId;
 use eyre::WrapErr;
 use futures::{
-    channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
+    FutureExt,
+    channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded},
     pin_mut,
     stream::Stream,
     task::{Context, Poll},
-    Future, FutureExt,
 };
 use revm::{
     context::BlockEnv,
     database::DatabaseRef,
     primitives::{
-        map::{hash_map::Entry, AddressHashMap, HashMap},
         KECCAK_EMPTY,
+        map::{AddressHashMap, HashMap, hash_map::Entry},
     },
     state::{AccountInfo, Bytecode},
 };
 use std::{
     collections::VecDeque,
     fmt,
-    future::IntoFuture,
     path::Path,
     pin::Pin,
     sync::{
-        atomic::{AtomicU8, Ordering},
-        mpsc::{channel as oneshot_channel, Sender as OneshotSender},
         Arc,
+        atomic::{AtomicU8, Ordering},
+        mpsc::{Sender as OneshotSender, channel as oneshot_channel},
     },
 };
 use tokio::select;
@@ -237,7 +236,7 @@ impl<N: Network, B: ForkBlockEnv> BackendHandler<N, B> {
                 }
             }
             BackendRequest::BlockHash(number, sender) => {
-                let hash = self.db.block_hashes().read().get(&U256::from(number)).cloned();
+                let hash = self.db.block_hashes().read().get(&U256::from(number)).copied();
                 if let Some(hash) = hash {
                     let _ = sender.send(Ok(hash));
                 } else {
@@ -1005,12 +1004,11 @@ mod tests {
     use alloy_consensus::BlockHeader;
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
-    use revm::context::BlockEnv;
     use serde::Deserialize;
     use std::{fs, path::PathBuf};
     use tiny_http::{Response, Server};
 
-    pub fn get_http_provider(endpoint: &str) -> impl Provider<AnyNetwork> + Clone {
+    pub fn get_http_provider(endpoint: &str) -> impl Provider<AnyNetwork> + Clone + use<> {
         ProviderBuilder::new()
             .network::<AnyNetwork>()
             .connect_client(ClientBuilder::default().http(endpoint.parse().unwrap()))
@@ -1099,8 +1097,10 @@ mod tests {
             code_hash: KECCAK_EMPTY,
             account_id: None,
         };
+        let expected_nonce = new_acc.nonce;
+        let expected_balance = new_acc.balance;
         let mut account_data = AddressData::default();
-        account_data.insert(address, new_acc.clone());
+        account_data.insert(address, new_acc);
 
         backend.insert_or_update_address(account_data);
 
@@ -1112,11 +1112,11 @@ mod tests {
                 match result_address {
                     Some(acc) => {
                         assert_eq!(
-                            acc.nonce, new_acc.nonce,
+                            acc.nonce, expected_nonce,
                             "The nonce was not changed in instance of index {idx}"
                         );
                         assert_eq!(
-                            acc.balance, new_acc.balance,
+                            acc.balance, expected_balance,
                             "The balance was not changed in instance of index {idx}"
                         );
 
@@ -1127,11 +1127,11 @@ mod tests {
                         };
 
                         assert_eq!(
-                            db_address.nonce, new_acc.nonce,
+                            db_address.nonce, expected_nonce,
                             "The nonce was not changed in instance of index {idx}"
                         );
                         assert_eq!(
-                            db_address.balance, new_acc.balance,
+                            db_address.balance, expected_balance,
                             "The balance was not changed in instance of index {idx}"
                         );
                     }
@@ -1291,7 +1291,7 @@ mod tests {
         new_acc.code = Some(Bytecode::new_raw(([10, 20, 30, 40]).into()));
 
         let mut account_data = AddressData::default();
-        account_data.insert(address, new_acc.clone());
+        account_data.insert(address, new_acc);
 
         backend.insert_or_update_address(account_data);
 

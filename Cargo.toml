@@ -2,7 +2,7 @@
 name = "foundry-fork-db"
 description = "Fork database used by Foundry"
 version = "0.24.1"
-edition = "2021"
+edition = "2024"
 # Remember to update clippy.toml as well
 rust-version = "1.93"
 authors = ["Foundry Contributors"]
@@ -10,15 +10,31 @@ license = "MIT OR Apache-2.0"
 homepage = "https://github.com/foundry-rs/foundry-fork-db"
 repository = "https://github.com/foundry-rs/foundry-fork-db"
 
-[lints]
-rust.unused_must_use = "deny"
-rust.rust_2018_idioms = { level = "deny", priority = -1 }
-rustdoc.all = "warn"
-
 [lints.clippy]
+borrow_as_ptr = "warn"
+branches_sharing_code = "warn"
+clear_with_drain = "warn"
+cloned_instead_of_copied = "warn"
+collection_is_never_read = "warn"
+dbg-macro = "warn"
+explicit_iter_loop = "warn"
+literal-string-with-formatting-args = "allow"
+manual-string-new = "warn"
 missing_const_for_fn = "warn"
-use_self = "warn"
 option_if_let_else = "warn"
+redundant-clone = "warn"
+result_large_err = "allow"
+uninlined-format-args = "warn"
+use-self = "warn"
+
+[lints.rust]
+redundant_imports = "warn"
+redundant-lifetimes = "warn"
+rust-2018-idioms = "warn"
+unused-must-use = "warn"
+
+[lints.rustdoc]
+all = "warn"
 
 [package.metadata.docs.rs]
 all-features = true

@@ -1,15 +1,15 @@
 //! Cache related abstraction
 
 use alloy_chains::Chain;
-use alloy_primitives::{map::U256Map, Address, B256, U256};
+use alloy_primitives::{Address, B256, U256, map::U256Map};
 use parking_lot::RwLock;
 use revm::{
-    context::BlockEnv,
-    primitives::{map::AddressHashMap, StorageKeyMap, KECCAK_EMPTY},
-    state::{Account, AccountInfo, AccountStatus},
     DatabaseCommit,
+    context::BlockEnv,
+    primitives::{KECCAK_EMPTY, StorageKeyMap, map::AddressHashMap},
+    state::{Account, AccountInfo, AccountStatus},
 };
-use serde::{ser::SerializeMap, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, ser::SerializeMap};
 use std::{
     collections::BTreeSet,
     fs,

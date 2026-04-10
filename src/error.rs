@@ -3,7 +3,7 @@ use alloy_rpc_types::BlockId;
 use futures::channel::mpsc::{SendError, TrySendError};
 use std::{
     convert::Infallible,
-    sync::{mpsc::RecvError, Arc},
+    sync::{Arc, mpsc::RecvError},
 };
 
 /// Result alias with `DatabaseError` as error
