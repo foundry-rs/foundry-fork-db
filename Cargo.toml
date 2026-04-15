@@ -51,8 +51,8 @@ futures = "0.3"
 
 parking_lot = "0.12"
 
-revm = { version = "36.0.0", features = ["std", "serde"] }
-tempo-revm = { git = "https://github.com/tempoxyz/tempo", rev = "e00f196ebb53812f4e5dca6e47a972d01c24f5ae", default-features = false }
+revm = { version = "37.0.0", features = ["std", "serde"] }
+tempo-revm = { git = "https://github.com/tempoxyz/tempo", rev = "f69d033", default-features = false }
 
 serde = "1.0"
 serde_json = "1.0"
