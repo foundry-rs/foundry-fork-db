@@ -41,7 +41,9 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-alloy-chains = { version = "0.2", default-features = false, features = ["serde"] }
+alloy-chains = { version = "0.2", default-features = false, features = [
+    "serde",
+] }
 alloy-primitives = { version = "1.5.7", features = ["map"] }
 alloy-provider = { version = "2.0.0", default-features = false }
 alloy-rpc-types = { version = "2.0.0", features = ["eth"] }
@@ -52,7 +54,7 @@ futures = "0.3"
 parking_lot = "0.12"
 
 revm = { version = "36.0.0", features = ["std", "serde"] }
-tempo-revm = { git = "https://github.com/tempoxyz/tempo", rev = "e00f196ebb53812f4e5dca6e47a972d01c24f5ae", default-features = false }
+tempo-revm = { git = "https://github.com/tempoxyz/tempo", rev = "98c06d0126ce453408a3da513b81b56eafe28d1c", default-features = false }
 
 serde = "1.0"
 serde_json = "1.0"
