@@ -9,7 +9,9 @@ use revm::{
     primitives::{KECCAK_EMPTY, StorageKeyMap, map::AddressHashMap},
     state::{Account, AccountInfo, AccountStatus},
 };
-use serde::{Deserialize, Deserializer, Serialize, Serializer, ser::SerializeMap};
+use serde::{
+    Deserialize, Deserializer, Serialize, Serializer, de::DeserializeOwned, ser::SerializeMap,
+};
 use std::{
     collections::BTreeSet,
     fs,
@@ -17,7 +19,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tempo_revm::TempoBlockEnv;
 use url::Url;
 
 pub type StorageInfo = StorageKeyMap<U256>;
@@ -119,56 +120,16 @@ impl<B: ForkBlockEnv> BlockchainDb<B> {
     }
 }
 
-/// A helper trait for serializing the `block_env` field of [`BlockchainDbMeta`].
-///
-/// This exists because some block environment types (e.g. [`TempoBlockEnv`]) do not implement
-/// [`Serialize`] directly, so their serializable representation is handled here.
-pub trait SerializeBlockEnv: Clone {
-    fn serialize_block_env<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error>;
-}
-
-impl SerializeBlockEnv for BlockEnv {
-    fn serialize_block_env<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        self.serialize(serializer)
-    }
-}
-
-impl SerializeBlockEnv for TempoBlockEnv {
-    fn serialize_block_env<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        self.inner.serialize(serializer)
-    }
-}
-
-/// A helper trait for deserializing the `block_env` field of [`BlockchainDbMeta`].
-///
-/// This exists because some block environment types (e.g. [`TempoBlockEnv`]) do not implement
-/// [`Deserialize`] directly, so their construction from a stored [`BlockEnv`] is handled here.
-pub trait DeserializeBlockEnv: Sized {
-    fn from_owned_block_env(block_env: BlockEnv) -> Self;
-}
-
-impl DeserializeBlockEnv for BlockEnv {
-    fn from_owned_block_env(block_env: BlockEnv) -> Self {
-        block_env
-    }
-}
-
-impl DeserializeBlockEnv for TempoBlockEnv {
-    fn from_owned_block_env(block_env: BlockEnv) -> Self {
-        Self { inner: block_env, timestamp_millis_part: 0 }
-    }
-}
-
 /// Marker trait for block environment types that can be used with the forking backend.
 ///
-/// Automatically implemented for any `B: SerializeBlockEnv + DeserializeBlockEnv + Clone +
+/// Automatically implemented for any `B: Serialize + DeserializeOwned + Default + Clone +
 /// PartialEq + Send + Sync + 'static`.
 pub trait ForkBlockEnv:
-    SerializeBlockEnv + DeserializeBlockEnv + Clone + PartialEq + Send + Sync + 'static
+    Serialize + DeserializeOwned + Default + Clone + PartialEq + Send + Sync + 'static
 {
 }
 
-impl<B: SerializeBlockEnv + DeserializeBlockEnv + Clone + PartialEq + Send + Sync + 'static>
+impl<B: Serialize + DeserializeOwned + Default + Clone + PartialEq + Send + Sync + 'static>
     ForkBlockEnv for B
 {
 }
@@ -226,44 +187,39 @@ impl<B: PartialEq> PartialEq for BlockchainDbMeta<B> {
     }
 }
 
-impl<B: SerializeBlockEnv> Serialize for BlockchainDbMeta<B> {
+impl<B: Serialize> Serialize for BlockchainDbMeta<B> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct;
-
-        struct BlockEnvWrapper<'a, B>(&'a B);
-        impl<'a, B: SerializeBlockEnv> Serialize for BlockEnvWrapper<'a, B> {
-            fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-                self.0.serialize_block_env(serializer)
-            }
-        }
 
         let field_count = if self.chain.is_some() { 3 } else { 2 };
         let mut s = serializer.serialize_struct("BlockchainDbMeta", field_count)?;
         if let Some(chain) = &self.chain {
             s.serialize_field("chain", chain)?;
         }
-        s.serialize_field("block_env", &BlockEnvWrapper(&self.block_env))?;
+        s.serialize_field("block_env", &self.block_env)?;
         s.serialize_field("hosts", &self.hosts)?;
         s.end()
     }
 }
 
-/// A backwards compatible representation of [BlockEnv]
+/// A backwards compatible representation of a block environment type `B`.
 ///
 /// This prevents deserialization errors of cache files caused by breaking changes to the
-/// default [BlockEnv], for example enabling an optional feature.
-/// By hand rolling deserialize impl we can prevent cache file issues
-struct BlockEnvBackwardsCompat {
-    inner: BlockEnv,
+/// block environment, for example enabling an optional feature that adds new fields.
+/// By filling in missing fields from `B::default()` we can prevent cache file issues.
+struct BlockEnvBackwardsCompat<B> {
+    inner: B,
 }
 
-impl<'de> Deserialize<'de> for BlockEnvBackwardsCompat {
+impl<'de, B: DeserializeOwned + Default + Serialize> Deserialize<'de>
+    for BlockEnvBackwardsCompat<B>
+{
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let mut value = serde_json::Value::deserialize(deserializer)?;
 
         // we check for any missing fields here
         if let Some(obj) = value.as_object_mut() {
-            let default_value = serde_json::to_value(BlockEnv::default()).unwrap();
+            let default_value = serde_json::to_value(B::default()).unwrap();
             for (key, value) in default_value.as_object().unwrap() {
                 if !obj.contains_key(key) {
                     obj.insert(key.to_string(), value.clone());
@@ -271,8 +227,8 @@ impl<'de> Deserialize<'de> for BlockEnvBackwardsCompat {
             }
         }
 
-        let cfg_env: BlockEnv = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
-        Ok(Self { inner: cfg_env })
+        let inner: B = serde_json::from_value(value).map_err(serde::de::Error::custom)?;
+        Ok(Self { inner })
     }
 }
 
@@ -292,18 +248,19 @@ impl From<Hosts> for BTreeSet<String> {
     }
 }
 
-impl<'de, B: DeserializeBlockEnv> Deserialize<'de> for BlockchainDbMeta<B> {
+impl<'de, B: DeserializeOwned + Default + Serialize> Deserialize<'de> for BlockchainDbMeta<B> {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
-        struct Meta {
+        #[serde(bound = "B: DeserializeOwned + Default + Serialize")]
+        struct Meta<B> {
             chain: Option<Chain>,
-            block_env: BlockEnvBackwardsCompat,
+            block_env: BlockEnvBackwardsCompat<B>,
             #[serde(alias = "host")]
             hosts: Hosts,
         }
 
         let Meta { chain, block_env, hosts } = Meta::deserialize(deserializer)?;
-        Ok(Self { chain, block_env: B::from_owned_block_env(block_env.inner), hosts: hosts.into() })
+        Ok(Self { chain, block_env: block_env.inner, hosts: hosts.into() })
     }
 }
 
@@ -449,7 +406,7 @@ impl<B: ForkBlockEnv> JsonBlockCacheDB<B> {
     }
 }
 
-impl<B: SerializeBlockEnv> JsonBlockCacheDB<B> {
+impl<B: Serialize + Clone> JsonBlockCacheDB<B> {
     /// Flushes the DB to disk if caching is enabled.
     #[instrument(level = "warn", skip_all, fields(path = ?self.cache_path))]
     pub fn flush(&self) {
@@ -494,7 +451,7 @@ pub struct JsonBlockCacheData<B> {
     pub data: Arc<MemDb>,
 }
 
-impl<B: SerializeBlockEnv> Serialize for JsonBlockCacheData<B> {
+impl<B: Serialize + Clone> Serialize for JsonBlockCacheData<B> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut map = serializer.serialize_map(Some(4))?;
 
@@ -507,7 +464,7 @@ impl<B: SerializeBlockEnv> Serialize for JsonBlockCacheData<B> {
     }
 }
 
-impl<'de, B: DeserializeBlockEnv> Deserialize<'de> for JsonBlockCacheData<B> {
+impl<'de, B: DeserializeOwned + Default + Serialize> Deserialize<'de> for JsonBlockCacheData<B> {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
         struct Data<B> {
@@ -536,9 +493,9 @@ impl<'de, B: DeserializeBlockEnv> Deserialize<'de> for JsonBlockCacheData<B> {
 /// This type intentionally does not implement `Clone` since it's intended that there's only once
 /// instance that will flush the cache.
 #[derive(Debug)]
-pub struct FlushJsonBlockCacheDB<B: SerializeBlockEnv>(pub Arc<JsonBlockCacheDB<B>>);
+pub struct FlushJsonBlockCacheDB<B: Serialize + Clone>(pub Arc<JsonBlockCacheDB<B>>);
 
-impl<B: SerializeBlockEnv> Drop for FlushJsonBlockCacheDB<B> {
+impl<B: Serialize + Clone> Drop for FlushJsonBlockCacheDB<B> {
     fn drop(&mut self) {
         trace!(target: "fork::cache", "flushing cache");
         self.0.flush();
@@ -701,23 +658,6 @@ mod tests {
         let json = serde_json::to_string(&meta).unwrap();
         let recovered: BlockchainDbMeta<BlockEnv> = serde_json::from_str(&json).unwrap();
         assert_eq!(meta, recovered);
-    }
-
-    #[test]
-    fn roundtrip_meta_tempo_block_env() {
-        let meta = BlockchainDbMeta {
-            chain: Some(Chain::mainnet()),
-            block_env: TempoBlockEnv {
-                inner: BlockEnv { number: U256::from(1u64), ..Default::default() },
-                timestamp_millis_part: 42,
-            },
-            hosts: BTreeSet::from(["eth-mainnet.alchemyapi.io".to_string()]),
-        };
-        let json = serde_json::to_string(&meta).unwrap();
-        let recovered: BlockchainDbMeta<TempoBlockEnv> = serde_json::from_str(&json).unwrap();
-        // timestamp_millis_part is not serialized, so it resets to 0 on deserialization
-        assert_eq!(meta.block_env.inner, recovered.block_env.inner);
-        assert_eq!(recovered.block_env.timestamp_millis_part, 0);
     }
 
     #[test]
