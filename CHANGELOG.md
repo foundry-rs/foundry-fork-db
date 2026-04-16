@@ -5,11 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.25.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.25.0) - 2026-04-16
+
+### Dependencies
+
+- Bump revm ([#136](https://github.com/foundry-rs/foundry-fork-db/issues/136))
+- Bump alloy 2.0.0 ([#132](https://github.com/foundry-rs/foundry-fork-db/issues/132))
+- [deps] Add 7 day dependency cooldown ([#131](https://github.com/foundry-rs/foundry-fork-db/issues/131))
+- Update to Rust edition 2024, sync lint rules with foundry ([#129](https://github.com/foundry-rs/foundry-fork-db/issues/129))
+- [deps] Bump taiki-e/install-action from 2.70.2 to 2.74.0 ([#130](https://github.com/foundry-rs/foundry-fork-db/issues/130))
+- [deps] Bump taiki-e/install-action from 2.69.7 to 2.70.2 ([#121](https://github.com/foundry-rs/foundry-fork-db/issues/121))
+- [deps] Bump taiki-e/install-action from 2.68.34 to 2.69.7 ([#116](https://github.com/foundry-rs/foundry-fork-db/issues/116))
+- [deps] Bump Swatinem/rust-cache from 2.8.2 to 2.9.1 ([#115](https://github.com/foundry-rs/foundry-fork-db/issues/115))
+- [deps] Bump taiki-e/install-action from 2.68.25 to 2.68.34 ([#114](https://github.com/foundry-rs/foundry-fork-db/issues/114))
+
+### Features
+
+- `ForkBlockEnv` marker trait ([#128](https://github.com/foundry-rs/foundry-fork-db/issues/128))
+- `BackendHandler`/`SharedBackend` generic block ([#125](https://github.com/foundry-rs/foundry-fork-db/issues/125))
+- `JsonBlockCacheDB` generic block + Serialization workaround ([#123](https://github.com/foundry-rs/foundry-fork-db/issues/123))
+- `BlockchainDbMeta` generic over `BlockEnv` ([#122](https://github.com/foundry-rs/foundry-fork-db/issues/122))
+
+### Miscellaneous Tasks
+
+- Set `BlockchainDb` default `BlockEnv` ([#126](https://github.com/foundry-rs/foundry-fork-db/issues/126))
+- `missing_const_for_fn` lint back to "warn" ([#124](https://github.com/foundry-rs/foundry-fork-db/issues/124))
+- Update CODEOWNERS ([#117](https://github.com/foundry-rs/foundry-fork-db/issues/117))
+
+### Other
+
+- Pin GitHub Actions to SHA, add cargo to dependabot ([#133](https://github.com/foundry-rs/foundry-fork-db/issues/133))
+
+### Refactor
+
+- Remove tempo-revm dep, use Serialize+DeserializeOwned for ForkBlockEnv ([#135](https://github.com/foundry-rs/foundry-fork-db/issues/135))
+
 ## [0.24.1](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.24.1) - 2026-03-13
 
 ### Bug Fixes
 
 - Use revm's maps ([#113](https://github.com/foundry-rs/foundry-fork-db/issues/113))
+
+### Miscellaneous Tasks
+
+- Release 0.24.1
 
 ## [0.24.0](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.24.0) - 2026-03-13
 
@@ -468,8 +507,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Miscellaneous Tasks
 
 - Release 0.2.0
-
-## [0.2.1](https://github.com/foundry-rs/foundry-fork-db/releases/tag/v0.2.1) - 2024-08-08
 
 ### Other
 
